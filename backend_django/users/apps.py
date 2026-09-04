@@ -18,11 +18,12 @@ def create_superuser(sender, **kwargs):
         username=email,
         email=email,
         password=password,
-        name='Admin User',
-        phone='0000000000',
-        business_name='KitchenOS Admin',
-        business_location='Headquarters',
-        user_type='admin',
+        first_name="Admin",
+        last_name="User",
+        phone="0000000000",
+        business_name="KitchenOS Admin",
+        business_location="Headquarters",
+        user_type="admin",
     )
 
 
