@@ -4,8 +4,6 @@ import os
 
 
 def create_superuser(sender, **kwargs):
-    if sender.name != 'users':
-        return
     from django.contrib.auth import get_user_model
     User = get_user_model()
     if User.objects.filter(is_superuser=True).exists():
@@ -31,4 +29,4 @@ class UsersConfig(AppConfig):
     name = 'users'
 
     def ready(self):
-        post_migrate.connect(create_superuser, sender=self)
+        post_migrate.connect(create_superuser, sender=self.__class__)
