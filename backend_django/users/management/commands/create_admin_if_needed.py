@@ -36,6 +36,10 @@ class Command(BaseCommand):
             email=email.lower().strip(),
             password=password,
             name="Admin User",
+            phone="0000000000",
+            business_name="KitchenOS Admin",
+            business_location="Headquarters",
+            user_type="admin",
         )
         self.stdout.write(
             self.style.SUCCESS(f"Superuser created for {email}.")
