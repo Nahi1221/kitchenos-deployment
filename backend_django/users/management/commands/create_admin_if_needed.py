@@ -31,6 +31,7 @@ class Command(BaseCommand):
         user = User.objects.create_user(
             email=email.lower().strip(),
             password=password,
+            username=email.lower().strip(),
             name="Admin User",
             phone="0000000000",
             business_name="KitchenOS Admin",
