@@ -1,8 +1,4 @@
-"""Creates a Django superuser from environment variables if none exists.
-
-Add to Render build command: python manage.py create_admin_if_needed
-Set ADMIN_EMAIL and ADMIN_PASSWORD in Render environment variables.
-"""
+"""Creates a Django superuser from environment variables if none exists."""
 import os
 
 from django.contrib.auth import get_user_model
@@ -32,7 +28,7 @@ class Command(BaseCommand):
             )
             return
 
-        User.objects.create_superuser(
+        user = User.objects.create_user(
             email=email.lower().strip(),
             password=password,
             name="Admin User",
@@ -41,6 +37,11 @@ class Command(BaseCommand):
             business_location="Headquarters",
             user_type="admin",
         )
+        user.is_staff = True
+        user.is_superuser = True
+        user.status = "ACTIVE"
+        user.save()
+
         self.stdout.write(
             self.style.SUCCESS(f"Superuser created for {email}.")
         )
