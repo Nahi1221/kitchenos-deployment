@@ -29,4 +29,4 @@ class UsersConfig(AppConfig):
     name = 'users'
 
     def ready(self):
-        post_migrate.connect(create_superuser, sender=self.__class__)
+        post_migrate.connect(create_superuser, dispatch_uid="create_superuser_signal")
