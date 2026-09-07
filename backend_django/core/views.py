@@ -141,27 +141,27 @@ class AdminApproveView(APIView):
     permission_classes = [IsAdminUser]
 
     def post(self, request, pk):
-        try:
-            payment = Payment.objects.get(pk=pk)
-        except Payment.DoesNotExist:
+        user = None
+
+        existing_pending_payment = Payment.objects.filter(pk=pk, status='PENDING').first()
+        if existing_pending_payment:
+            user = existing_pending_payment.user
+            existing_pending_payment.status = 'APPROVED'
+            existing_pending_payment.save()
+        else:
             try:
                 user = User.objects.get(pk=pk, user_type='tenant', status='PENDING_APPROVAL')
             except User.DoesNotExist:
-                return Response({'error': 'Payment or pending tenant not found.'}, status=404)
-            payment = Payment.objects.create(
+                return Response({'error': 'Pending tenant not found.'}, status=404)
+            Payment.objects.create(
                 user=user,
                 amount=0,
                 method='bank_transfer',
                 reference_number='',
-                notes='Auto-created for pending approval flow',
+                notes='Auto-approved via admin',
                 status='APPROVED',
             )
-        else:
-            user = payment.user
 
-        payment.status = 'APPROVED'
-        payment.save()
-        user = payment.user
         user.status = 'ACTIVE'
         user.save()
         password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
@@ -174,6 +174,16 @@ class AdminApproveView(APIView):
             subscription.start_date = timezone.now()
             subscription.end_date = timezone.now() + timedelta(days=30)
             subscription.save()
+
+        from branches.models import Branch
+        if not user.branches.exists():
+            Branch.objects.create(
+                user=user,
+                name=user.business_name,
+                location=user.business_location,
+                phone=user.phone or '',
+            )
+
         try:
             send_tenant_approval_email(
                 tenant_email=user.email,
