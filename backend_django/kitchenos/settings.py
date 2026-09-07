@@ -210,6 +210,7 @@ if CLOUDINARY_URL:
     }
 
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    STATICFILES_STORAGE = 'cloudinary_storage.storage.StaticCloudinaryStorage'
 
 # ============================================
 # STATIC FILES
