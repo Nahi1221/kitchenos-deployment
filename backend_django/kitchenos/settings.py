@@ -193,6 +193,25 @@ if FRONTEND_URL and FRONTEND_URL not in CSRF_TRUSTED_ORIGINS:
     CSRF_TRUSTED_ORIGINS.append(FRONTEND_URL)
 
 # ============================================
+# CLOUDINARY (Media Storage)
+# ============================================
+CLOUDINARY_URL = env('CLOUDINARY_URL', default='')
+
+if CLOUDINARY_URL:
+    INSTALLED_APPS = [
+        'cloudinary',
+        'cloudinary_storage',
+    ] + INSTALLED_APPS
+
+    CLOUDINARY_STORAGE = {
+        'CLOUD_NAME': env('CLOUDINARY_CLOUD_NAME', default=''),
+        'API_KEY': env('CLOUDINARY_API_KEY', default=''),
+        'API_SECRET': env('CLOUDINARY_API_SECRET', default=''),
+    }
+
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
+# ============================================
 # STATIC FILES
 # ============================================
 STATIC_URL = '/static/'

@@ -7,6 +7,8 @@ services:
     startCommand: python manage.py migrate && python manage.py create_admin_if_needed && gunicorn kitchenos.wsgi:application --preload
     autoDeploy: true
     envVars:
+      - key: DATABASE_URL
+        value: postgresql://kitchenos_trex_user:ezltdvQkgCPRs9UqaDBJqUQbdmEHmF4M@dpg-daf9j0v40ujc73a9n5ag-a/kitchenos_trex
       - key: DJANGO_SETTINGS_MODULE
         value: kitchenos.settings_prod
       - key: DEBUG
@@ -27,3 +29,11 @@ services:
         value: Admin123
       - key: SECRET_KEY
         generateValue: true
+      - key: CLOUDINARY_URL
+        value: your-cloudinary-url
+      - key: CLOUDINARY_CLOUD_NAME
+        value: your-cloud-name
+      - key: CLOUDINARY_API_KEY
+        value: your-api-key
+      - key: CLOUDINARY_API_SECRET
+        value: your-api-secret

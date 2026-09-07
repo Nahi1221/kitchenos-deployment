@@ -60,6 +60,7 @@ def send_email(to, subject, html_content, from_email=None, user=None):
 
 def send_tenant_approval_email(tenant_email, tenant_name, password, business_name, user=None):
     subject = 'Your KitchenOS Account Has Been Approved'
+    frontend_url = getattr(settings, 'FRONTEND_URL', 'https://kitchenos-frontend.vercel.app')
     html_content = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #2563eb;">Welcome to KitchenOS!</h2>
@@ -70,7 +71,7 @@ def send_tenant_approval_email(tenant_email, tenant_name, password, business_nam
         <li>Email: <strong>{tenant_email}</strong></li>
         <li>Password: <strong>{password}</strong></li>
       </ul>
-      <p>Login here: <a href="http://localhost:5173/login">http://localhost:5173/login</a></p>
+      <p>Login here: <a href="{frontend_url}/login">{frontend_url}/login</a></p>
       <p style="color: #dc2626;">Please change your password after logging in.</p>
     </div>
     """
@@ -106,6 +107,7 @@ def send_registration_confirmation_email(tenant_email, tenant_name, business_nam
 
 def send_admin_new_registration_email(admin_email, tenant_name, tenant_email, business_name, plan_name, amount, user=None):
     subject = 'New KitchenOS Tenant Registration'
+    frontend_url = getattr(settings, 'FRONTEND_URL', 'https://kitchenos-frontend.vercel.app')
     html_content = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #2563eb;">New Registration Pending Approval</h2>
@@ -132,7 +134,7 @@ def send_admin_new_registration_email(admin_email, tenant_name, tenant_email, bu
           <td style="padding: 8px 0;">{amount} ETB</td>
         </tr>
       </table>
-      <p><a href="http://localhost:5173/admin/approvals" style="background-color: #2563eb; color: #ffffff; padding: 10px 16px; text-decoration: none; border-radius: 6px;">Review Approval</a></p>
+      <p><a href="{frontend_url}/admin/approvals" style="background-color: #2563eb; color: #ffffff; padding: 10px 16px; text-decoration: none; border-radius: 6px;">Review Approval</a></p>
     </div>
     """
     return send_email(admin_email, subject, html_content, user=user)
@@ -155,13 +157,14 @@ def send_tenant_suspended_email(tenant_email, tenant_name, business_name, reason
 
 def send_tenant_activated_email(tenant_email, tenant_name, business_name, user=None):
     subject = 'Your KitchenOS Account Has Been Reactivated'
+    frontend_url = getattr(settings, 'FRONTEND_URL', 'https://kitchenos-frontend.vercel.app')
     html_content = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #16a34a;">Account Reactivated</h2>
       <p>Hello <strong>{tenant_name}</strong>,</p>
       <p>Your account for <strong>{business_name}</strong> has been reactivated.</p>
       <p>You can now log in to your account.</p>
-      <p><a href="http://localhost:5173/login">Login to KitchenOS</a></p>
+      <p><a href="{frontend_url}/login">Login to KitchenOS</a></p>
     </div>
     """
     return send_email(tenant_email, subject, html_content, user=user)

@@ -1,10 +1,30 @@
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, UserManager
 from django.db import models
 from django.utils.text import slugify
 
 
+class CustomUserManager(UserManager):
+    def create_superuser(self, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError('Email is required')
+        email = self.normalize_email(email)
+        extra_fields.setdefault('user_type', 'admin')
+        extra_fields.setdefault('status', 'ACTIVE')
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+
 class User(AbstractUser):
-    # Extra fields for KitchenOS
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = []
+
+    objects = CustomUserManager()
+
+    email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20)
     business_name = models.CharField(max_length=255)
     business_location = models.TextField()
@@ -12,7 +32,6 @@ class User(AbstractUser):
     logo_url = models.URLField(blank=True, null=True)
     slug = models.SlugField(unique=True, blank=True, null=True)
 
-    # Status field (for approval workflow)
     status = models.CharField(
         max_length=20,
         choices=[
@@ -24,7 +43,6 @@ class User(AbstractUser):
         default='ACTIVE'
     )
 
-    # User type (tenant or admin)
     user_type = models.CharField(
         max_length=10,
         choices=[
