@@ -55,50 +55,52 @@ def admin_login_view(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register_view(request):
-    serializer = RegisterSerializer(data=request.data)
-    if serializer.is_valid():
-        user = serializer.save()
-        try:
-            send_registration_confirmation_email(
-                tenant_email=user.email,
-                tenant_name=f"{user.first_name} {user.last_name}".strip() or user.business_name,
-                business_name=user.business_name,
-                user=user,
-            )
-        except Exception as e:
-            AuditLog.objects.create(
-                user=user,
-                action='EMAIL',
-                model_name='Email',
-                object_id=user.email,
-                details={'subject': 'Registration Received', 'error': str(e)},
-            )
-        plan_name = request.data.get('plan', 'Free')
-        plan = Plan.objects.filter(name=plan_name, is_active=True).first()
-        amount = plan.price_monthly if plan else 0
-
-        payment_screenshot = request.FILES.get('payment_screenshot')
-        screenshot_url = None
-        if payment_screenshot:
+    try:
+        serializer = RegisterSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
             try:
-                import cloudinary
-                import cloudinary.uploader
-                result = cloudinary.uploader.upload(
-                    payment_screenshot,
-                    folder='kitchenos/payments',
-                    resource_type='image'
+                send_registration_confirmation_email(
+                    tenant_email=user.email,
+                    tenant_name=f"{user.first_name} {user.last_name}".strip() or user.business_name,
+                    business_name=user.business_name,
+                    user=user,
                 )
-                screenshot_url = result.get('secure_url')
             except Exception as e:
-                import os
-                payments_dir = os.path.join(settings.MEDIA_ROOT, 'payments')
-                os.makedirs(payments_dir, exist_ok=True)
-                unique_filename = f"{uuid.uuid4().hex}-{payment_screenshot.name}"
-                file_path = os.path.join(payments_dir, unique_filename)
-                with open(file_path, 'wb+') as destination:
-                    for chunk in payment_screenshot.chunks():
-                        destination.write(chunk)
-                screenshot_url = f"/media/payments/{unique_filename}"
+                print(f"Email error: {e}")
+                AuditLog.objects.create(
+                    user=user,
+                    action='EMAIL',
+                    model_name='Email',
+                    object_id=user.email,
+                    details={'subject': 'Registration Received', 'error': str(e)},
+                )
+            plan_name = request.data.get('plan', 'Free')
+            plan = Plan.objects.filter(name=plan_name, is_active=True).first()
+            amount = plan.price_monthly if plan else 0
+
+            payment_screenshot = request.FILES.get('payment_screenshot')
+            screenshot_url = None
+            if payment_screenshot:
+                try:
+                    import cloudinary.uploader
+                    result = cloudinary.uploader.upload(
+                        payment_screenshot,
+                        folder='kitchenos/payments',
+                        resource_type='image'
+                    )
+                    screenshot_url = result.get('secure_url')
+                except Exception as e:
+                    print(f"Cloudinary error: {e}")
+                    import os
+                    payments_dir = os.path.join(settings.MEDIA_ROOT, 'payments')
+                    os.makedirs(payments_dir, exist_ok=True)
+                    unique_filename = f"{uuid.uuid4().hex}-{payment_screenshot.name}"
+                    file_path = os.path.join(payments_dir, unique_filename)
+                    with open(file_path, 'wb+') as destination:
+                        for chunk in payment_screenshot.chunks():
+                            destination.write(chunk)
+                    screenshot_url = f"/media/payments/{unique_filename}"
 
         payment = Payment.objects.create(
             user=user,
@@ -145,7 +147,12 @@ def register_view(request):
         return Response({
             'message': 'Registration submitted! Awaiting admin approval.',
         }, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer
