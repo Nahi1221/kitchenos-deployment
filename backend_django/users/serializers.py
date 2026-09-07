@@ -58,8 +58,8 @@ class RegisterSerializer(serializers.Serializer):
         name_parts = full_name.strip().split(' ', 1)
         validated_data['first_name'] = name_parts[0] if name_parts else ''
         validated_data['last_name'] = name_parts[1] if len(name_parts) > 1 else ''
-        validated_data['username'] = validated_data['email']
-        user = User.objects.create_user(**validated_data)
+        email = validated_data.pop('email')
+        user = User.objects.create_user(email, password=None, **validated_data)
         user.status = 'PENDING_APPROVAL'
         user.set_unusable_password()
         user.save()
