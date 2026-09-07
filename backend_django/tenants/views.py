@@ -62,10 +62,28 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         else:
             subscription.end_date = subscription.end_date + timedelta(days=30 * duration_months)
         subscription.save()
+
+        screenshot = request.FILES.get('screenshot')
+        screenshot_url = None
+        if screenshot:
+            import os
+            import uuid
+            payments_dir = os.path.join(settings.BASE_DIR, 'media', 'payments')
+            os.makedirs(payments_dir, exist_ok=True)
+            unique_filename = f"{uuid.uuid4().hex}-{screenshot.name}"
+            file_path = os.path.join(payments_dir, unique_filename)
+            with open(file_path, 'wb+') as destination:
+                for chunk in screenshot.chunks():
+                    destination.write(chunk)
+            screenshot_url = f"/media/payments/{unique_filename}"
+
         payment = Payment.objects.create(
             user=request.user,
             amount=subscription.plan.price_monthly,
-            method='bank_transfer',
+            method=request.data.get('payment_method', 'bank_transfer'),
+            reference_number=request.data.get('reference_number', ''),
+            notes=request.data.get('notes', ''),
+            screenshot=screenshot_url,
             status='PENDING',
         )
         serializer = self.get_serializer(subscription)
@@ -93,10 +111,28 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         subscription.plan = new_plan
         subscription.status = 'PENDING'
         subscription.save()
+
+        screenshot = request.FILES.get('screenshot')
+        screenshot_url = None
+        if screenshot:
+            import os
+            import uuid
+            payments_dir = os.path.join(settings.BASE_DIR, 'media', 'payments')
+            os.makedirs(payments_dir, exist_ok=True)
+            unique_filename = f"{uuid.uuid4().hex}-{screenshot.name}"
+            file_path = os.path.join(payments_dir, unique_filename)
+            with open(file_path, 'wb+') as destination:
+                for chunk in screenshot.chunks():
+                    destination.write(chunk)
+            screenshot_url = f"/media/payments/{unique_filename}"
+
         payment = Payment.objects.create(
             user=request.user,
             amount=new_plan.price_monthly,
-            method='bank_transfer',
+            method=request.data.get('payment_method', 'bank_transfer'),
+            reference_number=request.data.get('reference_number', ''),
+            notes=request.data.get('notes', ''),
+            screenshot=screenshot_url,
             status='PENDING',
         )
         serializer = self.get_serializer(subscription)
