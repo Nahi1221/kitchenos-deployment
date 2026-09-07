@@ -114,14 +114,20 @@ WSGI_APPLICATION = 'kitchenos.wsgi.application'
 
 # ============================================
 # DATABASE
-# Use PostgreSQL on Railway when DATABASE_URL is provided,
+# Use PostgreSQL on Railway/Render when DATABASE_URL is provided,
 # otherwise keep SQLite for local development.
 # ============================================
-DATABASES = {
-    'default': dj_database_url.config(
-        default=f'sqlite:///{BASE_DIR / "db.sqlite3"}'
-    )
-}
+import os
+if os.environ.get('DATABASE_URL'):
+    DATABASES = {
+        'default': dj_database_url.config(env='DATABASE_URL')
+    }
+else:
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=f'sqlite:///{BASE_DIR / "db.sqlite3"}'
+        )
+    }
 
 # ============================================
 # PASSWORD VALIDATION
