@@ -4,7 +4,7 @@ services:
     env: python
     rootDir: backend_django
     buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
-    startCommand: python manage.py migrate && python manage.py create_admin_if_needed && gunicorn kitchenos.wsgi:application --preload
+    startCommand: python manage.py migrate && python manage.py seed_plans && python manage.py create_admin_if_needed && gunicorn kitchenos.wsgi:application --preload
     autoDeploy: true
     envVars:
       - key: DATABASE_URL

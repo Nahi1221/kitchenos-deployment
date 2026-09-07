@@ -116,54 +116,31 @@ class AdminApprovalListView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
-        payment_qs = Payment.objects.filter(status='PENDING').select_related('user')
-        payment_user_ids = set(payment_qs.values_list('user_id', flat=True))
-
-        pending_users = User.objects.filter(
+        pending_approvals = User.objects.filter(
             user_type='tenant',
             status='PENDING_APPROVAL'
-        ).exclude(id__in=payment_user_ids)
+        )
 
-        combined = list(payment_qs) + [
-            self._build_pending_payment_from_user(user)
-            for user in pending_users
-        ]
-
-        serializer = AdminApprovalSerializer(combined, many=True, context={'request': request})
+        serializer = AdminApprovalUserSerializer(pending_approvals, many=True, context={'request': request})
         return Response(serializer.data)
-
-    def _build_pending_payment_from_user(self, user):
-        payment = Payment(user=user, amount=0, method='bank_transfer', reference_number='', notes='', status='PENDING')
-        payment._is_virtual_pending = True
-        return payment
 
 class AdminApproveView(APIView):
     permission_classes = [IsAdminUser]
 
     def post(self, request, pk):
-        user = None
-
-        existing_pending_payment = Payment.objects.filter(pk=pk, status='PENDING').first()
-        if existing_pending_payment:
-            user = existing_pending_payment.user
-            existing_pending_payment.status = 'APPROVED'
-            existing_pending_payment.save()
-        else:
-            try:
-                user = User.objects.get(pk=pk, user_type='tenant', status='PENDING_APPROVAL')
-            except User.DoesNotExist:
-                return Response({'error': 'Pending tenant not found.'}, status=404)
-            Payment.objects.create(
-                user=user,
-                amount=0,
-                method='bank_transfer',
-                reference_number='',
-                notes='Auto-approved via admin',
-                status='APPROVED',
-            )
+        try:
+            user = User.objects.get(pk=pk, user_type='tenant', status='PENDING_APPROVAL')
+        except User.DoesNotExist:
+            return Response({'error': 'Pending tenant not found.'}, status=404)
 
         user.status = 'ACTIVE'
         user.save()
+
+        pending_payment = Payment.objects.filter(user=user, status='PENDING').first()
+        if pending_payment:
+            pending_payment.status = 'APPROVED'
+            pending_payment.save()
+
         password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
         user.set_password(password)
         user.temp_password = password

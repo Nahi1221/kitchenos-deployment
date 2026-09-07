@@ -45,14 +45,17 @@ class BranchViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], url_path='qr-code')
     def qr_code(self, request, pk=None):
-        branch = self.get_object()
-        tenant_slug = branch.user.slug
-        branch_slug = branch.name.lower().replace(' ', '-')
-        qr_data = f"{settings.FRONTEND_URL}/r/{tenant_slug}/{branch_slug}"
-        qr = qrcode.QRCode(version=1, box_size=10, border=4)
-        qr.add_data(qr_data)
-        qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
-        buffer = io.BytesIO()
-        img.save(buffer, format='PNG')
-        return HttpResponse(buffer.getvalue(), content_type='image/png')
+        try:
+            branch = self.get_object()
+            tenant_slug = branch.user.slug or branch.user.business_name.lower().replace(' ', '-')
+            branch_slug = branch.name.lower().replace(' ', '-')
+            qr_data = f"{settings.FRONTEND_URL}/r/{tenant_slug}/{branch_slug}"
+            qr = qrcode.QRCode(version=1, box_size=10, border=4)
+            qr.add_data(qr_data)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            buffer = io.BytesIO()
+            img.save(buffer, format='PNG')
+            return HttpResponse(buffer.getvalue(), content_type='image/png')
+        except Exception as e:
+            return HttpResponse(f"Error: {str(e)}", status=500)

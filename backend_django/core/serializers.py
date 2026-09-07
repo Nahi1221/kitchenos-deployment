@@ -99,6 +99,31 @@ class AdminApprovalSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.screenshot)
         return obj.screenshot
 
+
+class AdminApprovalUserSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+    payment = serializers.SerializerMethodField()
+    date = serializers.DateTimeField(source='date_joined', read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['id', 'business_name', 'name', 'email', 'date', 'payment']
+
+    def get_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip()
+
+    def get_payment(self, obj):
+        payment = Payment.objects.filter(user=obj, status='PENDING').first()
+        if payment:
+            return {
+                'amount': str(payment.amount),
+                'screenshot': payment.screenshot.url if payment.screenshot else None,
+                'method': payment.method,
+                'reference_number': payment.reference_number,
+                'notes': payment.notes,
+            }
+        return None
+
 class InvoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Invoice
