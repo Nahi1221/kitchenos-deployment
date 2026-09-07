@@ -80,14 +80,25 @@ def register_view(request):
         payment_screenshot = request.FILES.get('payment_screenshot')
         screenshot_url = None
         if payment_screenshot:
-            payments_dir = os.path.join(settings.MEDIA_ROOT, 'payments')
-            os.makedirs(payments_dir, exist_ok=True)
-            unique_filename = f"{uuid.uuid4().hex}-{payment_screenshot.name}"
-            file_path = os.path.join(payments_dir, unique_filename)
-            with open(file_path, 'wb+') as destination:
-                for chunk in payment_screenshot.chunks():
-                    destination.write(chunk)
-            screenshot_url = f"/media/payments/{unique_filename}"
+            try:
+                import cloudinary
+                import cloudinary.uploader
+                result = cloudinary.uploader.upload(
+                    payment_screenshot,
+                    folder='kitchenos/payments',
+                    resource_type='image'
+                )
+                screenshot_url = result.get('secure_url')
+            except Exception as e:
+                import os
+                payments_dir = os.path.join(settings.MEDIA_ROOT, 'payments')
+                os.makedirs(payments_dir, exist_ok=True)
+                unique_filename = f"{uuid.uuid4().hex}-{payment_screenshot.name}"
+                file_path = os.path.join(payments_dir, unique_filename)
+                with open(file_path, 'wb+') as destination:
+                    for chunk in payment_screenshot.chunks():
+                        destination.write(chunk)
+                screenshot_url = f"/media/payments/{unique_filename}"
 
         payment = Payment.objects.create(
             user=user,
