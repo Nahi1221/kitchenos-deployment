@@ -1,41 +1,49 @@
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+import requests
+import json
 from django.conf import settings
 from django.utils import timezone
 from core.models import AuditLog
+
+
+BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
 
 def send_email(to, subject, html_content, from_email=None, user=None):
     if not from_email:
         from_email = getattr(settings, 'BREVO_FROM_EMAIL', 'noreply@kitchenos.app')
 
-    host = getattr(settings, 'BREVO_SMTP_HOST', 'smtp-relay.brevo.com')
-    port = int(getattr(settings, 'BREVO_SMTP_PORT', 587))
-    username = getattr(settings, 'BREVO_SMTP_USER', '')
-    password = getattr(settings, 'BREVO_SMTP_PASSWORD', '')
+    api_key = getattr(settings, 'BREVO_SMTP_PASSWORD', '')
 
-    if not username or not password:
+    if not api_key:
         if user:
             AuditLog.objects.create(
                 user=user,
                 action='EMAIL',
                 model_name='Email',
                 object_id=to,
-                details={'subject': subject, 'error': 'SMTP credentials not configured'},
+                details={'subject': subject, 'error': 'Brevo API key not configured'},
             )
-        raise ValueError('Brevo SMTP credentials are not configured.')
+        raise ValueError('Brevo API key is not configured.')
 
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = subject
-    msg['From'] = from_email
-    msg['To'] = to
-    msg.attach(MIMEText(html_content, 'html', 'utf-8'))
+    payload = {
+        "sender": {"email": from_email, "name": "KitchenOS"},
+        "to": [{"email": to}],
+        "subject": subject,
+        "htmlContent": html_content,
+    }
 
     try:
-        with smtplib.SMTP_SSL(host, port) as server:
-            server.login(username, password)
-            server.sendmail(from_email, [to], msg.as_string())
+        response = requests.post(
+            BREVO_API_URL,
+            headers={
+                "api-key": api_key,
+                "Content-Type": "application/json",
+                "accept": "application/json",
+            },
+            data=json.dumps(payload),
+            timeout=10,
+        )
+        response.raise_for_status()
     except Exception as e:
         if user:
             AuditLog.objects.create(
