@@ -167,16 +167,20 @@ def _sanitize_allowed_origins(raw_values):
         lower = cleaned.lower()
         if 'friespowered.net' in lower or 'cuisine.' in lower:
             continue
-        sanitized.append(cleaned)
+        sanitized.append(cleaned.rstrip('/'))
     return sanitized
+
+def _strip_slash(url):
+    return url.rstrip('/') if url else url
 
 FRONTEND_ORIGINS = _sanitize_allowed_origins(env.list('CORS_ALLOWED_ORIGINS', default=[
     'http://localhost:5173',
     'http://localhost:5174',
-    FRONTEND_URL,
+    _strip_slash(FRONTEND_URL),
 ]))
-if FRONTEND_URL and FRONTEND_URL not in FRONTEND_ORIGINS:
-    FRONTEND_ORIGINS.append(FRONTEND_URL)
+frontend_url_stripped = _strip_slash(FRONTEND_URL)
+if frontend_url_stripped and frontend_url_stripped not in FRONTEND_ORIGINS:
+    FRONTEND_ORIGINS.append(frontend_url_stripped)
 
 # Vercel wildcard pattern goes in REGEX (not CORS_ALLOWED_ORIGINS which needs exact matches)
 CORS_ALLOWED_ORIGIN_REGEXES = [
@@ -187,10 +191,10 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 CSRF_TRUSTED_ORIGINS = _sanitize_allowed_origins(env.list('CSRF_TRUSTED_ORIGINS', default=[
     'http://localhost:5173',
     'http://localhost:5174',
-    FRONTEND_URL,
+    _strip_slash(FRONTEND_URL),
 ]))
-if FRONTEND_URL and FRONTEND_URL not in CSRF_TRUSTED_ORIGINS:
-    CSRF_TRUSTED_ORIGINS.append(FRONTEND_URL)
+if frontend_url_stripped and frontend_url_stripped not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(frontend_url_stripped)
 
 # ============================================
 # CLOUDINARY (Media Storage)
