@@ -1,5 +1,5 @@
 from django.http import HttpResponse
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
@@ -8,9 +8,9 @@ from django.db.models import Count
 import qrcode
 import base64
 import io
-import os
 from .models import Branch
 from .serializers import BranchSerializer
+
 
 class BranchViewSet(viewsets.ModelViewSet):
     serializer_class = BranchSerializer
@@ -31,8 +31,8 @@ class BranchViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def qr(self, request, pk=None):
         branch = self.get_object()
-        tenant_slug = branch.user.slug
-        branch_slug = branch.name.lower().replace(' ', '-')
+        tenant_slug = branch.user.slug or slugify(branch.user.business_name)
+        branch_slug = slugify(branch.name)
         qr_data = f"{settings.FRONTEND_URL}/r/{tenant_slug}/{branch_slug}"
         qr = qrcode.QRCode(version=1, box_size=10, border=4)
         qr.add_data(qr_data)
@@ -47,8 +47,9 @@ class BranchViewSet(viewsets.ModelViewSet):
     def qr_code(self, request, pk=None):
         try:
             branch = self.get_object()
-            tenant_slug = branch.user.slug or branch.user.business_name.lower().replace(' ', '-')
-            branch_slug = branch.name.lower().replace(' ', '-')
+            from django.utils.text import slugify
+            tenant_slug = branch.user.slug or slugify(branch.user.business_name)
+            branch_slug = slugify(branch.name)
             qr_data = f"{settings.FRONTEND_URL}/r/{tenant_slug}/{branch_slug}"
             qr = qrcode.QRCode(version=1, box_size=10, border=4)
             qr.add_data(qr_data)
@@ -58,4 +59,4 @@ class BranchViewSet(viewsets.ModelViewSet):
             img.save(buffer, format='PNG')
             return HttpResponse(buffer.getvalue(), content_type='image/png')
         except Exception as e:
-            return HttpResponse(f"Error: {str(e)}", status=500)
+            return HttpResponse(f"Error generating QR: {str(e)}", status=500)

@@ -17,8 +17,10 @@ import uuid
 import os
 import random
 import string
+import traceback
 
 User = get_user_model()
+
 
 def _get_user_response(user):
     refresh = RefreshToken.for_user(user)
@@ -27,6 +29,7 @@ def _get_user_response(user):
         'refresh': str(refresh),
         'user': UserSerializer(user).data,
     }
+
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -41,6 +44,7 @@ def tenant_login_view(request):
         return Response(_get_user_response(user), status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def admin_login_view(request):
@@ -52,62 +56,59 @@ def admin_login_view(request):
         return Response(_get_user_response(user), status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register_view(request):
     try:
         serializer = RegisterSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.save()
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user = serializer.save()
+
+        try:
+            send_registration_confirmation_email(
+                tenant_email=user.email,
+                tenant_name=f"{user.first_name} {user.last_name}".strip() or user.business_name,
+                business_name=user.business_name,
+                user=user,
+            )
+        except Exception as e:
+            print(f"Registration email error: {e}")
+
+        plan_name = request.data.get('plan', 'Free')
+        plan = Plan.objects.filter(name=plan_name, is_active=True).first()
+        amount = plan.price_monthly if plan else 0
+
+        payment_screenshot = request.FILES.get('payment_screenshot')
+        screenshot_url = None
+        if payment_screenshot:
             try:
-                send_registration_confirmation_email(
-                    tenant_email=user.email,
-                    tenant_name=f"{user.first_name} {user.last_name}".strip() or user.business_name,
-                    business_name=user.business_name,
-                    user=user,
+                import cloudinary.uploader
+                result = cloudinary.uploader.upload(
+                    payment_screenshot,
+                    folder='kitchenos/payments',
+                    resource_type='image'
                 )
+                screenshot_url = result.get('secure_url')
             except Exception as e:
-                print(f"Email error: {e}")
-                AuditLog.objects.create(
-                    user=user,
-                    action='EMAIL',
-                    model_name='Email',
-                    object_id=user.email,
-                    details={'subject': 'Registration Received', 'error': str(e)},
-                )
-            plan_name = request.data.get('plan', 'Free')
-            plan = Plan.objects.filter(name=plan_name, is_active=True).first()
-            amount = plan.price_monthly if plan else 0
+                print(f"Cloudinary upload error: {e}")
+                fallback_dir = os.path.join(settings.BASE_DIR, 'media', 'payments')
+                os.makedirs(fallback_dir, exist_ok=True)
+                unique_filename = f"{uuid.uuid4().hex}-{payment_screenshot.name}"
+                file_path = os.path.join(fallback_dir, unique_filename)
+                with open(file_path, 'wb+') as destination:
+                    for chunk in payment_screenshot.chunks():
+                        destination.write(chunk)
+                screenshot_url = f"/media/payments/{unique_filename}"
 
-            payment_screenshot = request.FILES.get('payment_screenshot')
-            screenshot_url = None
-            if payment_screenshot:
-                try:
-                    import cloudinary.uploader
-                    result = cloudinary.uploader.upload(
-                        payment_screenshot,
-                        folder='kitchenos/payments',
-                        resource_type='image'
-                    )
-                    screenshot_url = result.get('secure_url')
-                except Exception as e:
-                    print(f"Cloudinary error: {e}")
-                    import os
-                    payments_dir = os.path.join(settings.MEDIA_ROOT, 'payments')
-                    os.makedirs(payments_dir, exist_ok=True)
-                    unique_filename = f"{uuid.uuid4().hex}-{payment_screenshot.name}"
-                    file_path = os.path.join(payments_dir, unique_filename)
-                    with open(file_path, 'wb+') as destination:
-                        for chunk in payment_screenshot.chunks():
-                            destination.write(chunk)
-                    screenshot_url = f"/media/payments/{unique_filename}"
-
-        payment = Payment.objects.create(
+        Payment.objects.create(
             user=user,
             amount=amount,
             method='bank_transfer',
-            reference_number=request.data.get('reference_number'),
-            notes=request.data.get('notes'),
+            reference_number=request.data.get('reference_number', ''),
+            notes=request.data.get('notes', ''),
             status='PENDING',
             screenshot=screenshot_url,
         )
@@ -123,12 +124,11 @@ def register_view(request):
                 items_used=0,
             )
 
-        tenant_name = f"{user.first_name} {user.last_name}".strip() or user.business_name
-        admin_email = 'nahomm2010@gmail.com'
         try:
+            admin_email = os.environ.get('ADMIN_EMAIL', 'nahomm2010@gmail.com')
             send_admin_new_registration_email(
                 admin_email=admin_email,
-                tenant_name=tenant_name,
+                tenant_name=f"{user.first_name} {user.last_name}".strip() or user.business_name,
                 tenant_email=user.email,
                 business_name=user.business_name,
                 plan_name=plan.name if plan else 'Free',
@@ -136,23 +136,16 @@ def register_view(request):
                 user=user,
             )
         except Exception as e:
-            AuditLog.objects.create(
-                user=user,
-                action='EMAIL',
-                model_name='Email',
-                object_id=admin_email,
-                details={'subject': 'New Registration Pending Approval', 'error': str(e)},
-            )
+            print(f"Admin notification email error: {e}")
 
         return Response({
             'message': 'Registration submitted! Awaiting admin approval.',
         }, status=status.HTTP_201_CREATED)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     except Exception as e:
-        import traceback
         traceback.print_exc()
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class ProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer
@@ -160,6 +153,7 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
 
 class ChangePasswordView(generics.GenericAPIView):
     serializer_class = ChangePasswordSerializer
@@ -171,6 +165,7 @@ class ChangePasswordView(generics.GenericAPIView):
             serializer.save()
             return Response({'detail': 'Password changed successfully.'}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -195,11 +190,5 @@ def forgot_password_view(request):
             user=user,
         )
     except Exception as e:
-        AuditLog.objects.create(
-            user=user,
-            action='EMAIL',
-            model_name='Email',
-            object_id=user.email,
-            details={'subject': 'Your KitchenOS Account Has Been Approved', 'error': str(e)},
-        )
+        print(f"Forgot password email error: {e}")
     return Response({'message': 'A new password has been sent to your email.'}, status=status.HTTP_200_OK)
