@@ -28,27 +28,6 @@ class HealthCheckView(APIView):
     def get(self, request):
         return Response({'status': 'healthy', 'service': 'kitchenos-api'}, status=200)
 
-
-class DebugUserStatusView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        try:
-            total = User.objects.count()
-            superusers = User.objects.filter(is_superuser=True).count()
-            admins = User.objects.filter(user_type='admin').count()
-            users_list = list(User.objects.values('email', 'user_type', 'is_superuser', 'status')[:10])
-            return Response({
-                'total_users': total,
-                'superusers': superusers,
-                'admins': admins,
-                'users': users_list,
-            }, status=200)
-        except Exception as e:
-            return Response({'error': str(e)}, status=500)
-
 class BranchStatsView(APIView):
     permission_classes = [IsAuthenticated]
 
