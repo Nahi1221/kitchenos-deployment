@@ -19,7 +19,7 @@ function AdminAnalytics() {
 	const fetchAnalytics = async () => {
 		try {
 			setLoading(true);
-			const [statsRes, revenueRes, itemsRes, branchesRes, orderRes, subRes, logsRes] = await Promise.all([
+			const results = await Promise.allSettled([
 				api.get('/admin/stats/'),
 				api.get('/admin/analytics/revenue/?days=30'),
 				api.get('/admin/analytics/top-items/?limit=10'),
@@ -28,13 +28,21 @@ function AdminAnalytics() {
 				api.get('/admin/analytics/subscriptions/'),
 				api.get('/admin/audit-logs/'),
 			]);
-			setMetrics(statsRes.data || {});
-			setRevenueData(revenueRes.data || []);
-			setTopItems(itemsRes.data || []);
-			setTopBranches(branchesRes.data || []);
-			setOrderStatus(orderRes.data || []);
-			setSubStatus(subRes.data || []);
-			setAuditLogs(logsRes.data || []);
+
+			const [statsRes, revenueRes, itemsRes, branchesRes, orderRes, subRes, logsRes] = results.map(r => r.status === 'fulfilled' ? r.value : { data: null });
+
+			setMetrics(statsRes?.data || {});
+			setRevenueData(revenueRes?.data || []);
+			setTopItems(itemsRes?.data || []);
+			setTopBranches(branchesRes?.data || []);
+			setOrderStatus(orderRes?.data || []);
+			setSubStatus(subRes?.data || []);
+			setAuditLogs(logsRes?.data || []);
+
+			const failed = results.filter(r => r.status === 'rejected').length;
+			if (failed > 0) {
+				toast.error(`Analytics: ${failed} section(s) failed to load`);
+			}
 		} catch (e) {
 			console.error('Failed to load analytics', e);
 			toast.error('Failed to load analytics');
