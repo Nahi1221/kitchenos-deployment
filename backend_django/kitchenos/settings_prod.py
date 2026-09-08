@@ -16,7 +16,7 @@ ALLOWED_HOSTS = [
 def _sanitize_allowed_origins(raw_values):
     sanitized = []
     for origin in raw_values:
-        cleaned = str(origin).strip()
+        cleaned = str(origin).strip().rstrip('/')
         if not cleaned:
             continue
         lower = cleaned.lower()
@@ -26,29 +26,30 @@ def _sanitize_allowed_origins(raw_values):
             sanitized.append(cleaned)
     return sanitized
 
-raw_cors = [o.strip() for o in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
-CORS_ALLOWED_ORIGINS = _sanitize_allowed_origins(raw_cors)
-if not CORS_ALLOWED_ORIGINS and os.environ.get("FRONTEND_URL"):
-    CORS_ALLOWED_ORIGINS = [os.environ["FRONTEND_URL"]]
-if os.environ.get("FRONTEND_URL") and os.environ["FRONTEND_URL"] not in CORS_ALLOWED_ORIGINS:
-    CORS_ALLOWED_ORIGINS.append(os.environ["FRONTEND_URL"])
-if "https://*.vercel.app" not in CORS_ALLOWED_ORIGINS:
-    CORS_ALLOWED_ORIGINS.append("https://*.vercel.app")
+CORS_ALLOWED_ORIGINS = list(CORS_ALLOWED_ORIGINS)
+raw_cors = [o.strip().rstrip('/') for o in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
+for origin in _sanitize_allowed_origins(raw_cors):
+    if origin not in CORS_ALLOWED_ORIGINS:
+        CORS_ALLOWED_ORIGINS.append(origin)
+frontend_url = os.environ.get("FRONTEND_URL", "").rstrip('/')
+if frontend_url and frontend_url not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS.append(frontend_url)
 
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r.strip() for r in os.environ.get("CORS_ALLOWED_ORIGIN_REGEXES", "").split(",") if r.strip()
-]
-if not CORS_ALLOWED_ORIGIN_REGEXES:
-    CORS_ALLOWED_ORIGIN_REGEXES = [r"^https://.*\.vercel\.app$"]
+CORS_ALLOWED_ORIGIN_REGEXES = list(CORS_ALLOWED_ORIGIN_REGEXES)
+raw_regexes = [r.strip() for r in os.environ.get("CORS_ALLOWED_ORIGIN_REGEXES", "").split(",") if r.strip()]
+for regex in raw_regexes:
+    if regex not in CORS_ALLOWED_ORIGIN_REGEXES:
+        CORS_ALLOWED_ORIGIN_REGEXES.append(regex)
+if not any(r == r"^https://.*\.vercel\.app$" for r in CORS_ALLOWED_ORIGIN_REGEXES):
+    CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https://.*\.vercel\.app$")
 
-raw_csrf = [o.strip() for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
-CSRF_TRUSTED_ORIGINS = _sanitize_allowed_origins(raw_csrf)
-if not CSRF_TRUSTED_ORIGINS and os.environ.get("FRONTEND_URL"):
-    CSRF_TRUSTED_ORIGINS = [os.environ["FRONTEND_URL"]]
-if os.environ.get("FRONTEND_URL") and os.environ["FRONTEND_URL"] not in CSRF_TRUSTED_ORIGINS:
-    CSRF_TRUSTED_ORIGINS.append(os.environ["FRONTEND_URL"])
-if "https://*.vercel.app" not in CSRF_TRUSTED_ORIGINS:
-    CSRF_TRUSTED_ORIGINS.append("https://*.vercel.app")
+CSRF_TRUSTED_ORIGINS = list(CSRF_TRUSTED_ORIGINS)
+raw_csrf = [o.strip().rstrip('/') for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
+for origin in _sanitize_allowed_origins(raw_csrf):
+    if origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(origin)
+if frontend_url and frontend_url not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(frontend_url)
 
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")  # noqa: F405
 STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
