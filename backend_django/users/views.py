@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
+from django.views.decorators.csrf import csrf_exempt
 from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, ChangePasswordSerializer
 from tenants.models import Plan
 from core.models import Payment, AuditLog
@@ -33,6 +34,7 @@ def _get_user_response(user):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@csrf_exempt
 def tenant_login_view(request):
     serializer = LoginSerializer(data=request.data)
     if serializer.is_valid():
@@ -47,6 +49,7 @@ def tenant_login_view(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@csrf_exempt
 def admin_login_view(request):
     serializer = LoginSerializer(data=request.data)
     if serializer.is_valid():
@@ -59,6 +62,7 @@ def admin_login_view(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@csrf_exempt
 def register_view(request):
     try:
         serializer = RegisterSerializer(data=request.data)
@@ -169,6 +173,7 @@ class ChangePasswordView(generics.GenericAPIView):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@csrf_exempt
 def forgot_password_view(request):
     email = request.data.get('email')
     if not email:
