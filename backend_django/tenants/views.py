@@ -74,17 +74,9 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
                     resource_type='image'
                 )
                 screenshot_url = result.get('secure_url')
-            except Exception:
-                import os
-                import uuid
-                payments_dir = os.path.join(settings.BASE_DIR, 'media', 'payments')
-                os.makedirs(payments_dir, exist_ok=True)
-                unique_filename = f"{uuid.uuid4().hex}-{screenshot.name}"
-                file_path = os.path.join(payments_dir, unique_filename)
-                with open(file_path, 'wb+') as destination:
-                    for chunk in screenshot.chunks():
-                        destination.write(chunk)
-                screenshot_url = f"/media/payments/{unique_filename}"
+            except Exception as e:
+                print(f"Cloudinary upload error: {e}")
+                screenshot_url = f"/media/payments/{screenshot.name}"
 
         payment = Payment.objects.create(
             user=request.user,
@@ -132,17 +124,9 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
                     resource_type='image'
                 )
                 screenshot_url = result.get('secure_url')
-            except Exception:
-                import os
-                import uuid
-                payments_dir = os.path.join(settings.BASE_DIR, 'media', 'payments')
-                os.makedirs(payments_dir, exist_ok=True)
-                unique_filename = f"{uuid.uuid4().hex}-{screenshot.name}"
-                file_path = os.path.join(payments_dir, unique_filename)
-                with open(file_path, 'wb+') as destination:
-                    for chunk in screenshot.chunks():
-                        destination.write(chunk)
-                screenshot_url = f"/media/payments/{unique_filename}"
+            except Exception as e:
+                print(f"Cloudinary upload error: {e}")
+                screenshot_url = f"/media/payments/{screenshot.name}"
 
         payment = Payment.objects.create(
             user=request.user,

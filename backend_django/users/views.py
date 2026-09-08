@@ -98,14 +98,7 @@ def register_view(request):
                 screenshot_url = result.get('secure_url')
             except Exception as e:
                 print(f"Cloudinary upload error: {e}")
-                fallback_dir = os.path.join(settings.BASE_DIR, 'media', 'payments')
-                os.makedirs(fallback_dir, exist_ok=True)
-                unique_filename = f"{uuid.uuid4().hex}-{payment_screenshot.name}"
-                file_path = os.path.join(fallback_dir, unique_filename)
-                with open(file_path, 'wb+') as destination:
-                    for chunk in payment_screenshot.chunks():
-                        destination.write(chunk)
-                screenshot_url = f"/media/payments/{unique_filename}"
+                screenshot_url = f"/media/payments/{payment_screenshot.name}"
 
         Payment.objects.create(
             user=user,

@@ -29,7 +29,7 @@ export function AuthProvider({ children }) {
     try {
       setLoading(true);
       
-      const response = await api.post('/auth/tenant/login/', { email, password });
+      const response = await api.post('/users/tenant/login/', { email, password });
       
       const { token, user } = response.data;
       
@@ -65,7 +65,7 @@ export function AuthProvider({ children }) {
     try {
       setLoading(true);
       
-      const response = await api.post('/auth/admin/login/', { email, password });
+      const response = await api.post('/users/admin/login/', { email, password });
       
       const { token, user } = response.data;
       

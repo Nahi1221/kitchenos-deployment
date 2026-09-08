@@ -38,6 +38,9 @@ class User(AbstractUser):
 
     objects = CustomUserManager()
 
+    # Remove username field (using email instead)
+    username = None
+
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20)
     business_name = models.CharField(max_length=255)

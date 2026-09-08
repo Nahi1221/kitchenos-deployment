@@ -23,6 +23,14 @@ class Plan(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def is_unlimited_branches(self):
+        return self.max_branches <= 0 or self.max_branches >= 999999
+
+    @property
+    def is_unlimited_items(self):
+        return self.max_items <= 0 or self.max_items >= 999999
+
 class Subscription(models.Model):
     STATUS_CHOICES = [
         ('TRIAL', 'Trial'),

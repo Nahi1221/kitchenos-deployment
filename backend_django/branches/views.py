@@ -25,9 +25,8 @@ class BranchViewSet(viewsets.ModelViewSet):
         subscription = user.subscriptions.filter(status__in=['ACTIVE', 'TRIAL', 'GRACE_PERIOD', 'PENDING']).order_by('-created_at').first()
         if subscription:
             current_branches = Branch.objects.filter(user=user, is_deleted=False).count()
-            max_branches = subscription.plan.max_branches
-            if max_branches != 999999 and current_branches >= max_branches:
-                raise ValidationError(f"You have reached your plan limit of {max_branches} branches. Please upgrade your plan.")
+            if not subscription.plan.is_unlimited_branches and current_branches >= subscription.plan.max_branches:
+                raise ValidationError(f"You have reached your plan limit of {subscription.plan.max_branches} branches. Please upgrade your plan.")
         serializer.save(user=user)
 
     @action(detail=True, methods=['get'])
@@ -49,7 +48,6 @@ class BranchViewSet(viewsets.ModelViewSet):
     def qr_code(self, request, pk=None):
         try:
             branch = self.get_object()
-            from django.utils.text import slugify
             tenant_slug = branch.user.slug or slugify(branch.user.business_name)
             branch_slug = slugify(branch.name)
             qr_data = f"{settings.FRONTEND_URL}/r/{tenant_slug}/{branch_slug}"

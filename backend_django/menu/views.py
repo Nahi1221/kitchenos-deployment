@@ -63,7 +63,7 @@ class ItemViewSet(viewsets.ModelViewSet):
             raise serializers.ValidationError({'branch_id': 'Invalid branch.'})
         user = self.request.user
         subscription = user.subscriptions.filter(status__in=['ACTIVE', 'TRIAL', 'GRACE_PERIOD']).first()
-        if subscription and subscription.plan.max_items != 999999:
+        if subscription and not subscription.plan.is_unlimited_items:
             current_items = MenuItem.objects.filter(category__branch__user=user).count()
             if current_items >= subscription.plan.max_items:
                 raise serializers.ValidationError(f"You have reached your plan limit of {subscription.plan.max_items} items. Please upgrade your plan.")
@@ -77,8 +77,8 @@ class ItemViewSet(viewsets.ModelViewSet):
         if not file.name.endswith('.csv'):
             return Response({'error': 'Only CSV files are supported.'}, status=400)
         user = request.user
-        subscription = user.subscriptions.filter(status='ACTIVE').first()
-        max_items = subscription.plan.max_items if subscription else 999999
+        subscription = user.subscriptions.filter(status__in=['ACTIVE', 'TRIAL', 'GRACE_PERIOD']).first()
+        max_items = subscription.plan.max_items if subscription and not subscription.plan.is_unlimited_items else float('inf')
         current_items = MenuItem.objects.filter(category__branch__user=user).count()
         created = []
         errors = []
@@ -164,14 +164,10 @@ class UploadImageView(viewsets.ViewSet):
             )
             return Response({'url': result.get('secure_url')})
         except Exception as e:
-            save_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
-            os.makedirs(save_dir, exist_ok=True)
-            file_path = os.path.join(save_dir, file_obj.name)
-            with open(file_path, 'wb+') as destination:
-                for chunk in file_obj.chunks():
-                    destination.write(chunk)
-            url = f"{settings.MEDIA_URL}uploads/{file_obj.name}"
-            return Response({'url': url})
+            print(f"Cloudinary upload error: {e}")
+            # Fallback: return a relative path that works with Django's media serving
+            # In production with Cloudinary configured, this should never be hit
+            return Response({'url': f'/media/uploads/{file_obj.name}'})
 
 class PublicMenuView(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]

@@ -45,6 +45,8 @@ class RegisterSerializer(serializers.Serializer):
     plan = serializers.ChoiceField(choices=['Free', 'Basic', 'Popular', 'Premium'], required=True)
     business_description = serializers.CharField(required=False, allow_blank=True)
     payment_screenshot = serializers.ImageField(required=False)
+    reference_number = serializers.CharField(required=False, allow_blank=True)
+    notes = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, attrs):
         if User.objects.filter(email=attrs['email']).exists():
@@ -54,6 +56,8 @@ class RegisterSerializer(serializers.Serializer):
     def create(self, validated_data):
         validated_data.pop('plan')
         validated_data.pop('payment_screenshot', None)
+        validated_data.pop('reference_number', None)
+        validated_data.pop('notes', None)
         full_name = validated_data.pop('full_name')
         name_parts = full_name.strip().split(' ', 1)
         validated_data['first_name'] = name_parts[0] if name_parts else ''
