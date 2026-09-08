@@ -62,7 +62,7 @@ function Login() {
     setForgotMessage('');
     setForgotLoading(true);
     try {
-      const res = await api.post('/auth/forgot-password/', { email: forgotEmail });
+      const res = await api.post('/users/forgot-password/', { email: forgotEmail });
       setForgotMessage(res.data?.message || 'If an account exists, a new password has been sent.');
       setForgotEmail('');
     } catch (err) {

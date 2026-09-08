@@ -93,6 +93,7 @@ function BranchManagement() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(qrImage);
   };
 
   return (

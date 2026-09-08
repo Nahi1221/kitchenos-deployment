@@ -51,6 +51,7 @@ function QRManagement() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(qrImage);
   };
 
   if (loading) return <div className="card text-center py-12">Loading branches...</div>;

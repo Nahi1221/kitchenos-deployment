@@ -62,13 +62,13 @@ function MenuManagement() {
 		}
 	};
 
-	const checkItemLimit = () => {
-		if (limits.items_limit && limits.items_used >= limits.items_limit) {
-			setShowUpgradeModal(true);
-			return false;
-		}
-		return true;
-	};
+const checkItemLimit = () => {
+    if (limits.items_limit && limits.items_limit !== -1 && limits.items_used >= limits.items_limit) {
+      setShowUpgradeModal(true);
+      return false;
+    }
+    return true;
+  };
 
 	const handleCreateCategory = async (e) => {
 		e.preventDefault();

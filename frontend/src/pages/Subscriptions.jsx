@@ -80,14 +80,19 @@ function Subscriptions() {
 		}
 	};
 
-	const getStatusColor = (status) => {
-		switch (status) {
-			case 'active': return 'bg-green-100 text-green-800';
-			case 'expired': return 'bg-red-100 text-red-800';
-			case 'pending': return 'bg-yellow-100 text-yellow-800';
-			default: return 'bg-gray-100 text-gray-800';
-		}
-	};
+const getStatusColor = (status) => {
+  const s = status?.toLowerCase();
+  switch (s) {
+    case 'active': return 'bg-green-100 text-green-800';
+    case 'expired': return 'bg-red-100 text-red-800';
+    case 'pending': return 'bg-yellow-100 text-yellow-800';
+    case 'trial': return 'bg-blue-100 text-blue-800';
+    case 'grace_period': return 'bg-orange-100 text-orange-800';
+    case 'suspended': return 'bg-purple-100 text-purple-800';
+    case 'cancelled': return 'bg-gray-100 text-gray-800';
+    default: return 'bg-gray-100 text-gray-800';
+  }
+};
 
 	const availablePlans = plans.filter(p => !subscription || p.id !== subscription.plan);
 
@@ -138,10 +143,10 @@ function Subscriptions() {
 							<h4 className="font-semibold text-lg" style={{ color: 'var(--text-primary)' }}>{plan.name}</h4>
 							<p className="text-2xl font-bold mt-1" style={{ color: 'var(--accent)' }}>{plan.price_monthly} ETB</p>
 							<p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>/month</p>
-							<ul className="mt-3 space-y-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-								<li>• {plan.max_branches} Branch{plan.max_branches !== 1 ? 'es' : ''}</li>
-								<li>• {plan.max_items === 999999 ? 'Unlimited' : plan.max_items} Items</li>
-							</ul>
+<ul className="mt-3 space-y-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+  <li>• {plan.is_unlimited_branches ? 'Unlimited' : plan.max_branches} Branch{plan.max_branches !== 1 ? 'es' : ''}</li>
+  <li>• {plan.is_unlimited_items ? 'Unlimited' : plan.max_items} Items</li>
+</ul>
 							{subscription && subscription.plan === plan.id && (
 								<span className="inline-block mt-3 px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">Current Plan</span>
 							)}
@@ -163,7 +168,7 @@ function Subscriptions() {
 									{new Date(h.start_date).toLocaleDateString()} - {new Date(h.end_date).toLocaleDateString()}
 								</p>
 							</div>
-							<span className={`px-2 py-1 text-xs rounded-full capitalize ${getStatusColor(h.status)}`}>{h.status}</span>
+							<span className={`px-2 py-1 text-xs rounded-full capitalize ${getStatusColor(h.status)}`}>{h.status?.toLowerCase()}</span>
 						</div>
 					))}
 				</div>
