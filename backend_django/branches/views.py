@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from django.conf import settings
 from django.db.models import Count
+from django.utils.text import slugify
 import qrcode
 import base64
 import io
@@ -21,11 +22,12 @@ class BranchViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        subscription = user.subscriptions.filter(status='ACTIVE').first()
+        subscription = user.subscriptions.filter(status__in=['ACTIVE', 'TRIAL', 'GRACE_PERIOD', 'PENDING']).order_by('-created_at').first()
         if subscription:
             current_branches = Branch.objects.filter(user=user, is_deleted=False).count()
-            if current_branches >= subscription.plan.max_branches:
-                raise ValidationError(f"You have reached your plan limit of {subscription.plan.max_branches} branches. Please upgrade your plan.")
+            max_branches = subscription.plan.max_branches
+            if max_branches != 999999 and current_branches >= max_branches:
+                raise ValidationError(f"You have reached your plan limit of {max_branches} branches. Please upgrade your plan.")
         serializer.save(user=user)
 
     @action(detail=True, methods=['get'])

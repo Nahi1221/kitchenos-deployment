@@ -62,8 +62,8 @@ class ItemViewSet(viewsets.ModelViewSet):
         if branch_id and not Branch.objects.filter(id=branch_id, user=self.request.user).exists():
             raise serializers.ValidationError({'branch_id': 'Invalid branch.'})
         user = self.request.user
-        subscription = user.subscriptions.filter(status='ACTIVE').first()
-        if subscription:
+        subscription = user.subscriptions.filter(status__in=['ACTIVE', 'TRIAL', 'GRACE_PERIOD']).first()
+        if subscription and subscription.plan.max_items != 999999:
             current_items = MenuItem.objects.filter(category__branch__user=user).count()
             if current_items >= subscription.plan.max_items:
                 raise serializers.ValidationError(f"You have reached your plan limit of {subscription.plan.max_items} items. Please upgrade your plan.")
@@ -155,14 +155,23 @@ class UploadImageView(viewsets.ViewSet):
         file_obj = request.FILES.get('menu_image')
         if not file_obj:
             return Response({'error': 'No file uploaded.'}, status=400)
-        save_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
-        os.makedirs(save_dir, exist_ok=True)
-        file_path = os.path.join(save_dir, file_obj.name)
-        with open(file_path, 'wb+') as destination:
-            for chunk in file_obj.chunks():
-                destination.write(chunk)
-        url = f"{settings.MEDIA_URL}uploads/{file_obj.name}"
-        return Response({'url': url})
+        try:
+            import cloudinary.uploader
+            result = cloudinary.uploader.upload(
+                file_obj,
+                folder='kitchenos/menu-images',
+                resource_type='image'
+            )
+            return Response({'url': result.get('secure_url')})
+        except Exception as e:
+            save_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
+            os.makedirs(save_dir, exist_ok=True)
+            file_path = os.path.join(save_dir, file_obj.name)
+            with open(file_path, 'wb+') as destination:
+                for chunk in file_obj.chunks():
+                    destination.write(chunk)
+            url = f"{settings.MEDIA_URL}uploads/{file_obj.name}"
+            return Response({'url': url})
 
 class PublicMenuView(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]

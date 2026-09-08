@@ -14,7 +14,7 @@ from tenants.models import Subscription
 from core.models import Payment, AuditLog, SiteSetting
 from core.serializers import (
     DashboardStatsSerializer, AdminStatsSerializer, AdminTenantSerializer,
-    AdminApprovalSerializer, PaymentSerializer
+    AdminApprovalSerializer, AdminApprovalUserSerializer, PaymentSerializer
 )
 from core.utils.mailer import send_tenant_approval_email, send_tenant_rejection_email, send_registration_confirmation_email, send_tenant_suspended_email, send_tenant_activated_email
 from orders.models import Order, OrderItem, Invoice
