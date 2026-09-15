@@ -100,15 +100,17 @@ def register_view(request):
                 print(f"Cloudinary upload error: {e}")
                 screenshot_url = f"/media/payments/{payment_screenshot.name}"
 
-        Payment.objects.create(
-            user=user,
-            amount=amount,
-            method='bank_transfer',
-            reference_number=request.data.get('reference_number', ''),
-            notes=request.data.get('notes', ''),
-            status='PENDING',
-            screenshot=screenshot_url,
-        )
+        # Only create payment for paid plans (amount > 0)
+        if amount > 0:
+            Payment.objects.create(
+                user=user,
+                amount=amount,
+                method='bank_transfer',
+                reference_number=request.data.get('reference_number', ''),
+                notes=request.data.get('notes', ''),
+                status='PENDING',
+                screenshot=screenshot_url,
+            )
 
         if plan:
             Subscription.objects.create(

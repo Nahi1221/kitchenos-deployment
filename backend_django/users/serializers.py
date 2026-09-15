@@ -51,6 +51,16 @@ class RegisterSerializer(serializers.Serializer):
     def validate(self, attrs):
         if User.objects.filter(email=attrs['email']).exists():
             raise serializers.ValidationError({"email": "User with this email already exists."})
+        
+        # Require payment proof for paid plans
+        plan = attrs.get('plan')
+        paid_plans = ['Basic', 'Popular', 'Premium']
+        if plan in paid_plans:
+            if not attrs.get('payment_screenshot'):
+                raise serializers.ValidationError({"payment_screenshot": "Payment screenshot is required for paid plans."})
+            if not attrs.get('reference_number'):
+                raise serializers.ValidationError({"reference_number": "Reference number is required for paid plans."})
+        
         return attrs
 
     def create(self, validated_data):

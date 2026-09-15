@@ -90,7 +90,8 @@ function Profile() {
       setLoading(true);
       await api.post('/auth/change-password/', {
         old_password: passwordData.old_password,
-        new_password: passwordData.new_password
+        new_password: passwordData.new_password,
+        new_password2: passwordData.confirm_password
       });
       toast.success('Password changed successfully');
       setPasswordData({ old_password: '', new_password: '', confirm_password: '' });

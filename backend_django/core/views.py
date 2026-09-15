@@ -193,12 +193,15 @@ class AdminRejectView(APIView):
 
     def post(self, request, pk):
         try:
-            payment = Payment.objects.get(pk=pk)
-        except Payment.DoesNotExist:
-            return Response({'error': 'Payment not found.'}, status=404)
-        payment.status = 'REJECTED'
-        payment.save()
-        user = payment.user
+            user = User.objects.get(pk=pk, user_type='tenant', status='PENDING_APPROVAL')
+        except User.DoesNotExist:
+            return Response({'error': 'Pending tenant not found.'}, status=404)
+
+        pending_payment = Payment.objects.filter(user=user, status='PENDING').first()
+        if pending_payment:
+            pending_payment.status = 'REJECTED'
+            pending_payment.save()
+
         user.status = 'REJECTED'
         user.save()
         try:
