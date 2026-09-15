@@ -2,9 +2,12 @@ from rest_framework import serializers
 from .models import Plan, Subscription
 
 class PlanSerializer(serializers.ModelSerializer):
+    is_unlimited_branches = serializers.BooleanField(read_only=True)
+    is_unlimited_items = serializers.BooleanField(read_only=True)
+
     class Meta:
         model = Plan
-        fields = ['id', 'name', 'price_monthly', 'max_branches', 'max_items', 'features', 'is_active']
+        fields = ['id', 'name', 'price_monthly', 'max_branches', 'max_items', 'features', 'is_active', 'is_unlimited_branches', 'is_unlimited_items']
         read_only_fields = ['id']
 
 class SubscriptionSerializer(serializers.ModelSerializer):

@@ -61,12 +61,19 @@ class ItemViewSet(viewsets.ModelViewSet):
             raise serializers.ValidationError({'category_id': 'Invalid category.'})
         if branch_id and not Branch.objects.filter(id=branch_id, user=self.request.user).exists():
             raise serializers.ValidationError({'branch_id': 'Invalid branch.'})
+        
+        # Determine the branch for limit checking
+        branch = category.branch
+        if branch_id:
+            branch = Branch.objects.filter(id=branch_id, user=self.request.user).first()
+        
         user = self.request.user
         subscription = user.subscriptions.filter(status__in=['ACTIVE', 'TRIAL', 'GRACE_PERIOD']).first()
         if subscription and not subscription.plan.is_unlimited_items:
-            current_items = MenuItem.objects.filter(category__branch__user=user).count()
+            # Count items per branch
+            current_items = MenuItem.objects.filter(category__branch=branch).count()
             if current_items >= subscription.plan.max_items:
-                raise serializers.ValidationError(f"You have reached your plan limit of {subscription.plan.max_items} items. Please upgrade your plan.")
+                raise serializers.ValidationError(f"You have reached your plan limit of {subscription.plan.max_items} items for this branch. Please upgrade your plan.")
         serializer.save(category=category)
 
     @action(detail=False, methods=['post'], parser_classes=[MultiPartParser, FormParser])
@@ -79,7 +86,12 @@ class ItemViewSet(viewsets.ModelViewSet):
         user = request.user
         subscription = user.subscriptions.filter(status__in=['ACTIVE', 'TRIAL', 'GRACE_PERIOD']).first()
         max_items = subscription.plan.max_items if subscription and not subscription.plan.is_unlimited_items else float('inf')
-        current_items = MenuItem.objects.filter(category__branch__user=user).count()
+        
+        # Track items per branch
+        branch_item_counts = {}
+        for branch in Branch.objects.filter(user=user, is_deleted=False):
+            branch_item_counts[branch.id] = MenuItem.objects.filter(category__branch=branch).count()
+        
         created = []
         errors = []
         try:
@@ -89,7 +101,7 @@ class ItemViewSet(viewsets.ModelViewSet):
                 category_name = row.get('category_name') or row.get('Category')
                 item_name = row.get('name') or row.get('Item Name')
                 price = row.get('price') or row.get('Price')
-                currency = row.get('currency') or row.get('Currency', 'USD')
+                currency = row.get('currency') or row.get('Currency', 'ETB')
                 description = row.get('description') or row.get('Description', '')
                 if not category_name or not item_name or not price:
                     errors.append({'row': row, 'error': 'Missing required fields: category_name, name, price'})
@@ -102,14 +114,18 @@ class ItemViewSet(viewsets.ModelViewSet):
                 if not branch:
                     errors.append({'row': row, 'error': 'Invalid branch_id'})
                     continue
+                
+                # Check branch-specific limit
+                current_branch_items = branch_item_counts.get(branch.id, 0)
+                if current_branch_items >= max_items:
+                    errors.append({'row': row, 'error': f'Plan limit reached for this branch ({max_items} items)'})
+                    continue
+                
                 category, _ = MenuCategory.objects.get_or_create(
                     branch=branch,
                     name=category_name,
                     defaults={'is_active': True, 'order': 0}
                 )
-                if current_items >= max_items:
-                    errors.append({'row': row, 'error': f'Plan limit reached ({max_items} items)'})
-                    continue
                 item, created_flag = MenuItem.objects.get_or_create(
                     category=category,
                     name=item_name,
@@ -120,6 +136,11 @@ class ItemViewSet(viewsets.ModelViewSet):
                         'is_available': True,
                     }
                 )
+                if created_flag:
+                    branch_item_counts[branch.id] = branch_item_counts.get(branch.id, 0) + 1
+                    created.append(item.name)
+                else:
+                    errors.append({'row': row, 'error': f'Item "{item_name}" already exists in this category'})
                 if created_flag:
                     created.append(item.name)
                     current_items += 1
@@ -186,6 +207,11 @@ class PublicMenuView(viewsets.ViewSet):
             branch = Branch.objects.filter(user=tenant, name__iexact=branch_slug.replace('-', ' '), is_active=True).first()
             if not branch:
                 return Response({'error': 'Branch not found.'}, status=404)
+        else:
+            # No branch_slug provided - use first active branch as default
+            branch = Branch.objects.filter(user=tenant, is_active=True).first()
+            if not branch:
+                return Response({'error': 'No active branch found for this tenant.'}, status=404)
 
         subscription = tenant.subscriptions.filter(status__in=['ACTIVE', 'TRIAL', 'GRACE_PERIOD', 'EXPIRED']).order_by('-created_at').first()
         subscription_status = subscription.status.lower() if subscription else 'active'

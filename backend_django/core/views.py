@@ -332,7 +332,7 @@ class AdminSubscriptionListView(APIView):
         qs = Subscription.objects.all().select_related('user', 'plan')
         status_filter = request.query_params.get('status', 'all')
         if status_filter != 'all':
-            qs = qs.filter(status=status_filter)
+            qs = qs.filter(status__iexact=status_filter)
         data = []
         for sub in qs:
             data.append({

@@ -55,8 +55,10 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
             duration_months = int(duration_months)
         except (TypeError, ValueError):
             duration_months = 1
+
+        # Set to PENDING until payment is approved
+        subscription.status = 'PENDING'
         if subscription.status in ['EXPIRED', 'CANCELLED']:
-            subscription.status = 'ACTIVE'
             subscription.start_date = timezone.now()
             subscription.end_date = timezone.now() + timedelta(days=30 * duration_months)
         else:

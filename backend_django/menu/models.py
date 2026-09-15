@@ -22,7 +22,7 @@ class MenuItem(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    currency = models.CharField(max_length=3, default='USD')
+    currency = models.CharField(max_length=3, default='ETB')
     image_url = models.URLField(blank=True, null=True)
     is_available = models.BooleanField(default=True)
     is_active = models.BooleanField(default=True)
