@@ -31,9 +31,8 @@ function QRManagement() {
     setQrLoading(true);
     setQrImage(null);
     try {
-      const res = await api.get(`/branches/${branch.id}/qr-code/`, { responseType: 'blob' });
-      const url = URL.createObjectURL(res.data);
-      setQrImage(url);
+      const res = await api.get(`/branches/${branch.id}/qr/`);
+      setQrImage(res.data.qr_code);
     } catch (e) {
       console.error('Failed to load QR code', e);
       toast.error('Failed to load QR code');

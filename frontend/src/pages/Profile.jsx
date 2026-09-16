@@ -97,7 +97,14 @@ function Profile() {
       setPasswordData({ old_password: '', new_password: '', confirm_password: '' });
       setShowPasswordForm(false);
     } catch (e) {
-      toast.error(e.response?.data?.error || 'Failed to change password');
+      const errorData = e.response?.data;
+      let errorMsg = 'Failed to change password';
+      if (errorData) {
+        const errorTexts = Object.values(errorData).flat().join(' ');
+        errorMsg = errorTexts || errorMsg;
+      }
+      console.error('Password change error:', errorData);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }

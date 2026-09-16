@@ -16,7 +16,7 @@ class IsAdminOrReadOnly(permissions.BasePermission):
 class PlanViewSet(viewsets.ModelViewSet):
     queryset = Plan.objects.filter(is_active=True)
     serializer_class = PlanSerializer
-    permission_classes = [IsAdminOrReadOnly]
+     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         if self.request.user.user_type == 'admin':
