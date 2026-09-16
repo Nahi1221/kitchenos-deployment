@@ -19,20 +19,20 @@ function AdminSubscriptions() {
 		setSelectedIds([]);
 	}, [filter]);
 
-	const fetchSubscriptions = async () => {
-		try {
-			setLoading(true);
-			const params = {};
-			if (filter !== 'all') params.status = filter;
-			const res = await api.get('/admin/subscriptions/', { params });
-			setSubscriptions(res.data || []);
-		} catch (e) {
-			console.error('Failed to load subscriptions', e);
-			toast.error('Failed to load subscriptions');
-		} finally {
-			setLoading(false);
-		}
-	};
+const fetchSubscriptions = async () => {
+ 		try {
+ 			setLoading(true);
+ 			const params = {};
+ 			if (filter !== 'all') params.status = filter.toUpperCase();
+ 			const res = await api.get('/admin/subscriptions/', { params });
+ 			setSubscriptions(res.data || []);
+ 		} catch (e) {
+ 			console.error('Failed to load subscriptions', e);
+ 			toast.error('Failed to load subscriptions');
+ 		} finally {
+ 			setLoading(false);
+ 		}
+ 	};
 
 	const toggleSelectAll = (e) => {
 		if (e.target.checked) {
@@ -115,15 +115,19 @@ function AdminSubscriptions() {
 		}
 	};
 
-	const getStatusColor = (status) => {
-		switch (status) {
-			case 'active': return 'bg-green-100 text-green-800';
-			case 'expired': return 'bg-red-100 text-red-800';
-			case 'pending': return 'bg-yellow-100 text-yellow-800';
-			case 'suspended': return 'bg-gray-100 text-gray-800';
-			default: return 'bg-gray-100 text-gray-800';
-		}
-	};
+const getStatusColor = (status) => {
+  const s = status?.toLowerCase();
+  switch (s) {
+    case 'active': return 'bg-green-100 text-green-800';
+    case 'expired': return 'bg-red-100 text-red-800';
+    case 'pending': return 'bg-yellow-100 text-yellow-800';
+    case 'trial': return 'bg-blue-100 text-blue-800';
+    case 'grace_period': return 'bg-orange-100 text-orange-800';
+    case 'suspended': return 'bg-purple-100 text-purple-800';
+    case 'cancelled': return 'bg-gray-100 text-gray-800';
+    default: return 'bg-gray-100 text-gray-800';
+  }
+};
 
 	if (loading) return <div className="card text-center py-12">Loading subscriptions...</div>;
 
@@ -131,13 +135,16 @@ function AdminSubscriptions() {
 		<div>
 			<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
 				<h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Subscriptions</h2>
-				<select value={filter} onChange={(e) => setFilter(e.target.value)} className="input-field w-full sm:w-48">
-					<option value="all">All Status</option>
-					<option value="active">Active</option>
-					<option value="expired">Expired</option>
-					<option value="pending">Pending</option>
-					<option value="suspended">Suspended</option>
-				</select>
+<select value={filter} onChange={(e) => setFilter(e.target.value)} className="input-field w-full sm:w-48">
+ 					<option value="all">All Status</option>
+ 					<option value="ACTIVE">Active</option>
+ 					<option value="EXPIRED">Expired</option>
+ 					<option value="PENDING">Pending</option>
+ 					<option value="SUSPENDED">Suspended</option>
+ 					<option value="TRIAL">Trial</option>
+ 					<option value="GRACE_PERIOD">Grace Period</option>
+ 					<option value="CANCELLED">Cancelled</option>
+ 				</select>
 			</div>
 			{subscriptions.length === 0 ? (
 				<div className="card text-center py-12" style={{ color: 'var(--text-muted)' }}>No subscriptions found</div>
