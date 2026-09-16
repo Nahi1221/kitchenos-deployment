@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from .models import Order, OrderItem, Invoice
+from branches.models import Branch
+from menu.models import MenuItem
 
 class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:
@@ -28,6 +30,23 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             'branch', 'order_type', 'table_number', 'customer_name',
             'customer_phone', 'notes', 'items'
         ]
+
+    def validate_branch(self, value):
+        user = self.context['request'].user
+        if not Branch.objects.filter(id=value.id, user=self.context['request'].user).exists():
+            raise serializers.ValidationError("Invalid branch.")
+        return value
+
+    def validate_items(self, value):
+        if not value:
+            raise serializers.ValidationError("At least one item is required.")
+        user = self.context['request'].user
+        branch_id = self.initial_data.get('branch')
+        for item in value:
+            menu_item = item.get('menu_item')
+            if not MenuItem.objects.filter(id=menu_item.id, category__branch__user=self.context['request'].user).exists():
+                raise serializers.ValidationError(f"Menu item {menu_item.id} does not belong to your branches.")
+        return value
 
     def create(self, validated_data):
         items_data = validated_data.pop('items')

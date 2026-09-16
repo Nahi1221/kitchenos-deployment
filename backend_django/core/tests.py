@@ -10,7 +10,6 @@ User = get_user_model()
 class AdminApprovalFlowTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_user(
-            username='admin@example.com',
             email='admin@example.com',
             password='AdminPass123',
             first_name='Admin',
@@ -23,7 +22,6 @@ class AdminApprovalFlowTests(TestCase):
             is_staff=True,
         )
         self.tenant = User.objects.create_user(
-            username='tenant@example.com',
             email='tenant@example.com',
             password='TenantPass123',
             first_name='Tenant',

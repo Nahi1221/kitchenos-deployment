@@ -98,7 +98,7 @@ def register_view(request):
                 screenshot_url = result.get('secure_url')
             except Exception as e:
                 print(f"Cloudinary upload error: {e}")
-                screenshot_url = f"/media/payments/{payment_screenshot.name}"
+                raise Exception("Failed to upload payment screenshot. Please ensure Cloudinary is configured correctly.")
 
         # Only create payment for paid plans (amount > 0)
         if amount > 0:

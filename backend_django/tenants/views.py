@@ -78,7 +78,7 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
                 screenshot_url = result.get('secure_url')
             except Exception as e:
                 print(f"Cloudinary upload error: {e}")
-                screenshot_url = f"/media/payments/{screenshot.name}"
+                raise Exception("Failed to upload payment screenshot. Please ensure Cloudinary is configured correctly.")
 
         payment = Payment.objects.create(
             user=request.user,
@@ -128,7 +128,7 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
                 screenshot_url = result.get('secure_url')
             except Exception as e:
                 print(f"Cloudinary upload error: {e}")
-                screenshot_url = f"/media/payments/{screenshot.name}"
+                raise Exception("Failed to upload payment screenshot. Please ensure Cloudinary is configured correctly.")
 
         payment = Payment.objects.create(
             user=request.user,

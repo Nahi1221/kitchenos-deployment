@@ -116,12 +116,17 @@ class AdminApprovalUserSerializer(serializers.ModelSerializer):
     def get_name(self, obj):
         return f"{obj.first_name} {obj.last_name}".strip()
 
+    def _get_pending_payment(self, obj):
+        if not hasattr(obj, '_pending_payment_cache'):
+            obj._pending_payment_cache = Payment.objects.filter(user=obj, status='PENDING').first()
+        return obj._pending_payment_cache
+
     def get_amount(self, obj):
-        payment = Payment.objects.filter(user=obj, status='PENDING').first()
+        payment = self._get_pending_payment(obj)
         return str(payment.amount) if payment else '0'
 
     def get_screenshot(self, obj):
-        payment = Payment.objects.filter(user=obj, status='PENDING').first()
+        payment = self._get_pending_payment(obj)
         if payment and payment.screenshot:
             request = self.context.get('request')
             if request:
@@ -130,15 +135,15 @@ class AdminApprovalUserSerializer(serializers.ModelSerializer):
         return None
 
     def get_method(self, obj):
-        payment = Payment.objects.filter(user=obj, status='PENDING').first()
+        payment = self._get_pending_payment(obj)
         return payment.method if payment else None
 
     def get_reference_number(self, obj):
-        payment = Payment.objects.filter(user=obj, status='PENDING').first()
+        payment = self._get_pending_payment(obj)
         return payment.reference_number if payment else None
 
     def get_notes(self, obj):
-        payment = Payment.objects.filter(user=obj, status='PENDING').first()
+        payment = self._get_pending_payment(obj)
         return payment.notes if payment else None
 
 class InvoiceSerializer(serializers.ModelSerializer):

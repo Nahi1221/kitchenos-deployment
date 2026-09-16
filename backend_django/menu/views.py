@@ -186,9 +186,7 @@ class UploadImageView(viewsets.ViewSet):
             return Response({'url': result.get('secure_url')})
         except Exception as e:
             print(f"Cloudinary upload error: {e}")
-            # Fallback: return a relative path that works with Django's media serving
-            # In production with Cloudinary configured, this should never be hit
-            return Response({'url': f'/media/uploads/{file_obj.name}'})
+            raise Exception("Failed to upload menu image. Please ensure Cloudinary is configured correctly.")
 
 class PublicMenuView(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]

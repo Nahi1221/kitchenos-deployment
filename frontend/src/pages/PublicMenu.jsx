@@ -115,13 +115,13 @@ function PublicMenu() {
 					<div className="flex items-center justify-between">
 						<div>
 							<h1 className="text-3xl md:text-4xl font-bold text-white mb-1">{data.tenant.business_name}</h1>
-							<p className="text-white/80 text-sm md:text-base">📍 {data.branch.name}</p>
-							{data.branch.location && (
+							<p className="text-white/80 text-sm md:text-base">📍 {data.branch?.name || 'Main Branch'}</p>
+							{data.branch?.location && (
 								<p className="text-white/70 text-xs md:text-sm mt-1">{data.branch.location}</p>
 							)}
 						</div>
 						<div className="flex gap-2">
-							{data.branch.phone && (
+							{data.branch?.phone && (
 								<a href={`tel:${data.branch.phone}`} className="p-3 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all duration-300 hover:scale-110">
 									<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-white"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.04 12.04 0 01-7.143-7.143c-.162-.441.004-.928.38-1.211l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></svg>
 								</a>

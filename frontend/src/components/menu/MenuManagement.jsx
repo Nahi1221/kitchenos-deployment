@@ -5,62 +5,90 @@ import ModifierManagement from './ModifierManagement';
 import { useBranch } from '../../contexts/BranchContext';
 
 function MenuManagement() {
-	const [categories, setCategories] = useState([]);
-	const [branchId, setBranchId] = useState(null);
-	const { selectedBranchId, selectBranch } = useBranch();
-	const [newCategoryName, setNewCategoryName] = useState('');
-	const [showItemForm, setShowItemForm] = useState(false);
-	const [editingItem, setEditingItem] = useState(null);
-	const [itemForm, setItemForm] = useState({ category_id: null, name: '', price: '', currency: 'USD', description: '', image: null, is_available: true, featured: false, is_out_of_stock: false });
-	const [searchQuery, setSearchQuery] = useState('');
-	const [selectedItemForModifiers, setSelectedItemForModifiers] = useState(null);
-	const [loading, setLoading] = useState(false);
-	const [limits, setLimits] = useState({ branches_limit: 0, branches_used: 0, items_limit: 0, items_used: 0 });
-	const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-	const [showWarning, setShowWarning] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [branchId, setBranchId] = useState(null);
+  const { selectedBranchId, selectBranch } = useBranch();
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [showItemForm, setShowItemForm] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [itemForm, setItemForm] = useState({ category_id: null, name: '', price: '', currency: 'ETB', description: '', image: null, is_available: true, featured: false, is_out_of_stock: false });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedItemForModifiers, setSelectedItemForModifiers] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [limits, setLimits] = useState({ branches_limit: 0, branches_used: 0, items_limit: 0, items_used: 0 });
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showWarning, setShowWarning] = useState(false);
 
-	useEffect(() => {
-		let cancelled = false;
-		async function fetch() {
-			try {
-				const branchesRes = await api.get('/branches/');
-				const branches = Array.isArray(branchesRes.data) ? branchesRes.data : (branchesRes.data?.results || []);
-				if (cancelled) return;
-				if (branches.length > 0) {
-					const initialId = selectedBranchId || branches[0].id;
-					setBranchId(initialId);
-					if (!selectedBranchId) {
-						selectBranch(branches[0].id);
-					}
-					fetchCategories(initialId);
-				} else {
-					toast.error('No branches found. Please create a branch first.');
-				}
-			} catch (e) {
-				console.error('Failed to load branches', e);
-			}
-		}
-		fetch();
-		return () => { cancelled = true; };
-	}, [selectedBranchId, selectBranch]);
+  useEffect(() => {
+    let cancelled = false;
+    async function fetch() {
+      try {
+        const branchesRes = await api.get('/branches/');
+        const branches = Array.isArray(branchesRes.data) ? branchesRes.data : (branchesRes.data?.results || []);
+        if (cancelled) return;
+        if (branches.length > 0) {
+          const initialId = selectedBranchId || branches[0].id;
+          setBranchId(initialId);
+          if (!selectedBranchId) {
+            selectBranch(branches[0].id);
+          }
+          fetchCategories(initialId);
+        } else {
+          toast.error('No branches found. Please create a branch first.');
+        }
+      } catch (e) {
+        console.error('Failed to load branches', e);
+      }
+    }
+    fetch();
+    return () => { cancelled = true; };
+  }, [selectedBranchId, selectBranch]);
 
-	useEffect(() => {
-		if (selectedBranchId && selectedBranchId !== branchId) {
-			setBranchId(selectedBranchId);
-			fetchCategories(selectedBranchId);
-		}
-	}, [selectedBranchId]);
+  useEffect(() => {
+    if (selectedBranchId && selectedBranchId !== branchId) {
+      setBranchId(selectedBranchId);
+      fetchCategories(selectedBranchId);
+    }
+  }, [selectedBranchId]);
 
-	const fetchCategories = async (bId) => {
-		if (!bId) return;
-		try {
-			const res = await api.get('/menu/categories/', { params: { branch_id: bId } });
-			setCategories(res.data || []);
-		} catch (e) {
-			console.error('Failed to load categories', e);
-			toast.error('Failed to load categories');
-		}
-	};
+  const fetchLimits = async () => {
+    try {
+      const res = await api.get('/tenants/subscriptions/current/');
+      const sub = res.data;
+      if (sub) {
+        setLimits({
+          branches_limit: sub.branches_limit,
+          branches_used: sub.branches_used,
+          items_limit: sub.items_limit,
+          items_used: sub.items_used,
+        });
+      }
+    } catch (e) {
+      console.error('Failed to load limits', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchLimits();
+  }, []);
+
+  useEffect(() => {
+    if (selectedBranchId && selectedBranchId !== branchId) {
+      setBranchId(selectedBranchId);
+      fetchCategories(selectedBranchId);
+    }
+  }, [selectedBranchId]);
+
+  const fetchCategories = async (bId) => {
+    if (!bId) return;
+    try {
+      const res = await api.get('/menu/categories/', { params: { branch_id: bId } });
+      setCategories(res.data || []);
+    } catch (e) {
+      console.error('Failed to load categories', e);
+      toast.error('Failed to load categories');
+    }
+  };
 
 const checkItemLimit = () => {
     if (limits.items_limit && limits.items_limit !== -1 && limits.items_used >= limits.items_limit) {
@@ -251,6 +279,25 @@ const checkItemLimit = () => {
 					<button onClick={() => setShowUpgradeModal(true)} className="text-sm font-medium underline">Upgrade Plan</button>
 				</div>
 			)}
+			{limits.items_limit && limits.items_limit !== -1 && (
+				<div className="mb-4 p-3 rounded-lg flex items-center justify-between" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
+					<div className="flex-1">
+						<p className="text-sm font-medium">Menu Items Limit</p>
+						<div className="flex items-center gap-2 mt-1">
+							<div className="flex-1 h-2 rounded bg-gray-200 dark:bg-gray-700" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+								<div className="h-full rounded" style={{
+									width: `${Math.min(100, (limits.items_used / (limits.items_limit || 1)) * 100)}%`,
+									backgroundColor: 'var(--accent)'
+								}}></div>
+							</div>
+							<span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+								{limits.items_used} / {limits.items_limit === -1 ? 'Unlimited' : limits.items_limit} items used
+							</span>
+						</div>
+					</div>
+					<button onClick={() => setShowUpgradeModal(true)} className="btn-primary text-sm">Upgrade Plan</button>
+				</div>
+			)}
 			<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
 				<h2 className="text-xl font-semibold">Menu Management</h2>
 				<div>
@@ -356,8 +403,8 @@ const checkItemLimit = () => {
 					<div className="flex gap-2">
 						<input placeholder="Price" value={itemForm.price} onChange={(e) => setItemForm({ ...itemForm, price: e.target.value })} className="px-2 py-1 rounded border flex-1" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', borderColor: 'var(--border-color)' }} />
 						<select value={itemForm.currency} onChange={(e) => setItemForm({ ...itemForm, currency: e.target.value })} className="px-2 py-1 rounded border" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}>
-							<option value="USD">USD</option>
 							<option value="ETB">ETB</option>
+							<option value="USD">USD</option>
 							<option value="EUR">EUR</option>
 							<option value="GBP">GBP</option>
 							<option value="SAR">SAR</option>

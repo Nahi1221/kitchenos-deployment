@@ -34,19 +34,19 @@ class BranchStatsView(APIView):
     def get(self, request):
         user = request.user
         branch_id = request.query_params.get('branch_id')
-        branches_qs = Branch.objects.filter(user=user)
+        branches_qs = Branch.objects.filter(user=user, is_deleted=False)
         if branch_id:
             branches_qs = branches_qs.filter(id=branch_id)
 
-        categories_qs = MenuCategory.objects.filter(branch__user=user)
+        categories_qs = MenuCategory.objects.filter(branch__user=user, branch__is_deleted=False)
         if branch_id:
             categories_qs = categories_qs.filter(branch_id=branch_id)
 
-        items_qs = MenuItem.objects.filter(category__branch__user=user)
+        items_qs = MenuItem.objects.filter(category__branch__user=user, category__branch__is_deleted=False)
         if branch_id:
             items_qs = items_qs.filter(category__branch_id=branch_id)
 
-        modifiers_qs = Modifier.objects.filter(item__category__branch__user=user)
+        modifiers_qs = Modifier.objects.filter(item__category__branch__user=user, item__category__branch__is_deleted=False)
         if branch_id:
             modifiers_qs = modifiers_qs.filter(item__category__branch_id=branch_id)
 
@@ -88,9 +88,8 @@ class AdminStatsView(APIView):
         total_tenants = User.objects.filter(user_type='tenant').count()
         active_subscriptions = Subscription.objects.filter(status='ACTIVE').count()
         pending_approvals = User.objects.filter(status='PENDING_APPROVAL').count()
-        payment_revenue = Payment.objects.filter(status='APPROVED').aggregate(total=Sum('amount'))['total'] or 0
-        invoice_revenue = Invoice.objects.filter(payment_status='paid').aggregate(total=Sum('amount_paid'))['total'] or 0
-        revenue = (payment_revenue or 0) + (invoice_revenue or 0)
+        # Only count approved payments as revenue to avoid double-counting with invoices
+        revenue = Payment.objects.filter(status='APPROVED').aggregate(total=Sum('amount'))['total'] or 0
 
         data = {
             'totalTenants': total_tenants,
@@ -265,6 +264,16 @@ class AdminPaymentApproveView(APIView):
                 subscription.start_date = timezone.now()
                 subscription.end_date = timezone.now() + timedelta(days=30)
                 subscription.save()
+
+            from branches.models import Branch
+            if not user.branches.exists():
+                Branch.objects.create(
+                    user=user,
+                    name=user.business_name,
+                    location=user.business_location,
+                    phone=user.phone or '',
+                )
+
             try:
                 send_tenant_approval_email(
                     tenant_email=user.email,
@@ -309,11 +318,32 @@ class AdminSettingsView(APIView):
 
     def get(self, request):
         settings = SiteSetting.objects.all()
-        data = {s.key: s.value for s in settings}
+        data = {}
+        for s in settings:
+            value = s.value
+            # Try to convert to appropriate type
+            if value.lower() in ('true', 'false'):
+                value = value.lower() == 'true'
+            else:
+                try:
+                    if '.' in value:
+                        value = float(value)
+                    else:
+                        value = int(value)
+                except ValueError:
+                    pass  # Keep as string
+            data[s.key] = value
         return Response(data)
 
     def put(self, request):
         for key, value in request.data.items():
+            # Convert value to string for storage
+            if isinstance(value, bool):
+                value = str(value).lower()
+            elif isinstance(value, (int, float)):
+                value = str(value)
+            else:
+                value = str(value)
             SiteSetting.objects.update_or_create(key=key, defaults={'value': value})
         return Response({'message': 'Settings updated.'})
 
