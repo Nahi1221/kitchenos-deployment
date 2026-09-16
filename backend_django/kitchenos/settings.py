@@ -179,9 +179,13 @@ def _sanitize_allowed_origins(raw_values):
 def _strip_slash(url):
     return url.rstrip('/') if url else url
 
-FRONTEND_ORIGINS = _sanitize_allowed_origins(env.list('CORS_ALLOWED_ORIGINS', default=[
-    'http://localhost:5173',
-    'http://localhost:5174',
+# Only allow localhost in development
+if DEBUG:
+    dev_origins = ['http://localhost:5173', 'http://localhost:5174']
+else:
+    dev_origins = []
+
+FRONTEND_ORIGINS = _sanitize_allowed_origins(env.list('CORS_ALLOWED_ORIGINS', default=dev_origins + [
     _strip_slash(FRONTEND_URL),
 ]))
 frontend_url_stripped = _strip_slash(FRONTEND_URL)
@@ -194,9 +198,7 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://.*\.netlify\.app$",
 ] + _sanitize_allowed_origins(env.list('CORS_ALLOWED_ORIGIN_REGEXES', default=[]))
 
-CSRF_TRUSTED_ORIGINS = _sanitize_allowed_origins(env.list('CSRF_TRUSTED_ORIGINS', default=[
-    'http://localhost:5173',
-    'http://localhost:5174',
+CSRF_TRUSTED_ORIGINS = _sanitize_allowed_origins(env.list('CSRF_TRUSTED_ORIGINS', default=dev_origins + [
     _strip_slash(FRONTEND_URL),
 ]))
 if frontend_url_stripped and frontend_url_stripped not in CSRF_TRUSTED_ORIGINS:
