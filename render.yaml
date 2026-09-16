@@ -8,7 +8,7 @@ services:
     autoDeploy: true
     envVars:
       - key: DATABASE_URL
-        value: postgresql://kitchenos_trex_user:ezltdvQkgCPRs9UqaDBJqUQbdmEHmF4M@dpg-daf9j0v40ujc73a9n5ag-a/kitchenos_trex
+        sync: false
       - key: DJANGO_SETTINGS_MODULE
         value: kitchenos.settings_prod
       - key: DEBUG
@@ -22,16 +22,14 @@ services:
       - key: CSRF_TRUSTED_ORIGINS
         value: https://kitchenos-frontend.vercel.app
       - key: ADMIN_EMAIL
-        value: admin@kitchenos.app
+        sync: false
       - key: ADMIN_PASSWORD
-        value: Admin123
+        sync: false
       - key: SECRET_KEY
         generateValue: true
       - key: CLOUDINARY_URL
-        value: your-cloudinary-url
-      - key: CLOUDINARY_CLOUD_NAME
-        value: your-cloud-name
-      - key: CLOUDINARY_API_KEY
-        value: your-api-key
-      - key: CLOUDINARY_API_SECRET
-        value: your-api-secret
+        sync: false
+      - key: BREVO_SMTP_PASSWORD
+        sync: false
+      - key: BREVO_FROM_EMAIL
+        sync: false
