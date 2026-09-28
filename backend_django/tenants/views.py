@@ -1,3 +1,4 @@
+from core.utils.uploads import upload_image
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -69,16 +70,10 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         screenshot_url = None
         if screenshot:
             try:
-                import cloudinary.uploader
-                result = cloudinary.uploader.upload(
-                    screenshot,
-                    folder='kitchenos/payments',
-                    resource_type='image'
-                )
-                screenshot_url = result.get('secure_url')
+                screenshot_url = upload_image(screenshot, folder='kitchenos/payments')
             except Exception as e:
-                print(f"Cloudinary upload error: {e}")
-                raise Exception("Failed to upload payment screenshot. Please ensure Cloudinary is configured correctly.")
+                print(f"Upload error: {e}")
+                raise Exception("Failed to upload payment screenshot.")
 
         payment = Payment.objects.create(
             user=request.user,
@@ -119,16 +114,10 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         screenshot_url = None
         if screenshot:
             try:
-                import cloudinary.uploader
-                result = cloudinary.uploader.upload(
-                    screenshot,
-                    folder='kitchenos/payments',
-                    resource_type='image'
-                )
-                screenshot_url = result.get('secure_url')
+                screenshot_url = upload_image(screenshot, folder='kitchenos/payments')
             except Exception as e:
-                print(f"Cloudinary upload error: {e}")
-                raise Exception("Failed to upload payment screenshot. Please ensure Cloudinary is configured correctly.")
+                print(f"Upload error: {e}")
+                raise Exception("Failed to upload payment screenshot.")
 
         payment = Payment.objects.create(
             user=request.user,

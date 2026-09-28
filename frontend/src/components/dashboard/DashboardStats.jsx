@@ -6,8 +6,8 @@ function DashboardStats() {
   const [stats, setStats] = useState({
     branches: 0,
     menuItems: 0,
-    revenue: 0,
-    customers: 0
+    categories: 0,
+    modifiers: 0
   });
   const { selectedBranchId } = useBranch();
 
@@ -25,12 +25,6 @@ function DashboardStats() {
     fetchStats();
   }, [selectedBranchId]);
 
-  const formatCurrency = (value) => {
-    const num = typeof value === 'string' ? parseFloat(value) : Number(value);
-    if (isNaN(num)) return '0 ETB';
-    return `${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ETB`;
-  };
-
   const formatNumber = (value) => {
     const num = typeof value === 'string' ? parseInt(value, 10) : Number(value);
     if (isNaN(num)) return '0';
@@ -40,8 +34,8 @@ function DashboardStats() {
   const items = [
     { name: 'Branches', value: formatNumber(stats.branches), icon: '🏪', color: 'var(--accent)' },
     { name: 'Menu Items', value: formatNumber(stats.menuItems), icon: '🍽️', color: 'var(--success)' },
-    { name: 'Revenue (Monthly)', value: formatCurrency(stats.revenue), icon: '💰', color: 'var(--warning)' },
-    { name: 'Total Customers', value: formatNumber(stats.customers), icon: '👥', color: 'var(--info)' },
+    { name: 'Categories', value: formatNumber(stats.categories), icon: '📂', color: 'var(--warning)' },
+    { name: 'Modifiers', value: formatNumber(stats.modifiers), icon: '🔧', color: 'var(--info)' },
   ];
 
   return (

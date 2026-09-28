@@ -12,8 +12,16 @@ const registerSchema = z.object({
   phone: z.string().min(10, 'Phone number is required'),
   business_name: z.string().min(2, 'Business name is required'),
   business_location: z.string().min(5, 'Location is required'),
+  business_description: z.string().optional(),
+  reference_number: z.string().optional(),
   plan: z.enum(['Free', 'Basic', 'Popular', 'Premium']),
-});
+}).refine(
+  (data) => data.plan === 'Free' || Boolean(data.reference_number?.trim()),
+  {
+    message: 'Reference number is required for paid plans',
+    path: ['reference_number'],
+  }
+);
 
 const plans = [
   { id: 'Free', price: 'Free', features: ['1 Branch', '20 Items', 'Basic QR'] },
@@ -49,6 +57,9 @@ function Register() {
     formData.append('plan', data.plan);
     if (data.business_description) {
       formData.append('business_description', data.business_description);
+    }
+    if (data.reference_number) {
+      formData.append('reference_number', data.reference_number);
     }
     if (paymentFile) {
       formData.append('payment_screenshot', paymentFile);
@@ -219,6 +230,16 @@ function Register() {
                   onChange={handleFileChange}
                   className="mt-2 block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-gray-700 dark:file:text-blue-300"
                 />
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mt-3">
+                  Payment reference number *
+                </label>
+                <input
+                  {...register('reference_number')}
+                  type="text"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="Transaction or transfer reference"
+                />
+                {errors.reference_number && <p className="mt-1 text-sm text-red-600">{errors.reference_number.message}</p>}
                 {paymentFile && (
                   <p className="mt-1 text-xs text-green-600 dark:text-green-400">✓ {paymentFile.name} uploaded</p>
                 )}

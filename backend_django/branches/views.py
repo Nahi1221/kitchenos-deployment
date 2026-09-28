@@ -9,6 +9,7 @@ from django.utils.text import slugify
 import qrcode
 import base64
 import io
+from tenants.models import Subscription
 from .models import Branch
 from .serializers import BranchSerializer
 
@@ -28,17 +29,15 @@ class BranchViewSet(viewsets.ModelViewSet):
             if not subscription.plan.is_unlimited_branches and current_branches >= subscription.plan.max_branches:
                 raise ValidationError(f"You have reached your plan limit of {subscription.plan.max_branches} branches. Please upgrade your plan.")
         serializer.save(user=user)
+        Subscription.refresh_latest_usage(user)
 
     def perform_destroy(self, instance):
-        # Prevent deleting the last branch
         active_branches = Branch.objects.filter(user=self.request.user, is_deleted=False).count()
         if active_branches <= 1:
             raise ValidationError("Cannot delete the last branch.")
-        
-        # Soft delete
         instance.is_deleted = True
-        instance.save()
-
+        instance.save(update_fields=['is_deleted'])
+        Subscription.refresh_latest_usage(self.request.user)
     @action(detail=True, methods=['get'])
     def qr(self, request, pk=None):
         branch = self.get_object()
@@ -53,13 +52,3 @@ class BranchViewSet(viewsets.ModelViewSet):
         img.save(buffer, format='PNG')
         img_str = base64.b64encode(buffer.getvalue()).decode('utf-8')
         return Response({'qr_code': f'data:image/png;base64,{img_str}', 'url': qr_data})
-
-    def perform_destroy(self, instance):
-        # Prevent deleting the last branch
-        active_branches = Branch.objects.filter(user=self.request.user, is_deleted=False).count()
-        if active_branches <= 1:
-            raise ValidationError("Cannot delete the last branch.")
-        
-        # Soft delete
-        instance.is_deleted = True
-        instance.save()

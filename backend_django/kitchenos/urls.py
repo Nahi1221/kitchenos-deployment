@@ -21,7 +21,6 @@ urlpatterns = [
     path('api/branches/stats/', BranchStatsView.as_view(), name='branch-stats'),
     path('api/branches/', include('branches.urls')),
     path('api/menu/', include('menu.urls')),
-    path('api/orders/', include('orders.urls')),
     path('api/', include('core.urls')),
     re_path(r'^(?!api|admin|static|media).*$', spa_index),
 ]

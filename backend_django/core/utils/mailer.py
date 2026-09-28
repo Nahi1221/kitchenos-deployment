@@ -1,6 +1,7 @@
 import requests
 import json
 from django.conf import settings
+from django.core.mail import send_mail, EmailMessage
 from django.utils import timezone
 from core.models import AuditLog
 
@@ -15,15 +16,25 @@ def send_email(to, subject, html_content, from_email=None, user=None):
     api_key = getattr(settings, 'BREVO_SMTP_PASSWORD', '')
 
     if not api_key:
-        if user:
-            AuditLog.objects.create(
-                user=user,
-                action='EMAIL',
-                model_name='Email',
-                object_id=to,
-                details={'subject': subject, 'error': 'Brevo API key not configured'},
+        try:
+            send_mail(
+                subject=subject,
+                message='',  # plain text fallback
+                html_message=html_content,
+                from_email=from_email,
+                recipient_list=[to],
             )
-        raise ValueError('Brevo API key is not configured.')
+            return {'status': 'sent', 'to': to, 'subject': subject, 'timestamp': timezone.now().isoformat()}
+        except Exception as e:
+            if user:
+                AuditLog.objects.create(
+                    user=user,
+                    action='EMAIL',
+                    model_name='Email',
+                    object_id=to,
+                    details={'subject': subject, 'error': str(e)},
+                )
+            raise
 
     payload = {
         "sender": {"email": from_email, "name": "KitchenOS"},

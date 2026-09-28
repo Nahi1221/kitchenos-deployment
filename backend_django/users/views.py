@@ -19,6 +19,7 @@ import os
 import random
 import string
 import traceback
+from core.utils.uploads import upload_image
 
 User = get_user_model()
 
@@ -89,16 +90,10 @@ def register_view(request):
         screenshot_url = None
         if payment_screenshot:
             try:
-                import cloudinary.uploader
-                result = cloudinary.uploader.upload(
-                    payment_screenshot,
-                    folder='kitchenos/payments',
-                    resource_type='image'
-                )
-                screenshot_url = result.get('secure_url')
+                screenshot_url = upload_image(payment_screenshot, folder='kitchenos/payments')
             except Exception as e:
-                print(f"Cloudinary upload error: {e}")
-                raise Exception("Failed to upload payment screenshot. Please ensure Cloudinary is configured correctly.")
+                print(f"Upload error: {e}")
+                raise Exception("Failed to upload payment screenshot.")
 
         # Only create payment for paid plans (amount > 0)
         if amount > 0:

@@ -31,7 +31,8 @@ function Login() {
     }
 
     try {
-      const isAdmin = email.trim().toLowerCase() === 'admin@kitchenos.app';
+      const normalizedEmail = email.trim().toLowerCase();
+      const isAdmin = normalizedEmail === 'admin@kitchenos.app' || normalizedEmail === 'admin@kitchenos.local';
       
       let result;
       if (isAdmin) {
@@ -233,7 +234,7 @@ function Login() {
               border: '1px solid var(--border-color)'
             }}
           >
-            Demo: admin@kitchenos.app / Admin123
+            Local admin: admin@kitchenos.local / admin123
           </div>
         </form>
 

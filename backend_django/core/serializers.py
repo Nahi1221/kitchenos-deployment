@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import SiteSetting, AuditLog, Payment
-from orders.models import Invoice
 
 User = get_user_model()
 
@@ -53,9 +52,8 @@ class PaymentSerializer(serializers.ModelSerializer):
 class DashboardStatsSerializer(serializers.Serializer):
     branches = serializers.IntegerField()
     menuItems = serializers.IntegerField()
-    revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
-    customers = serializers.IntegerField()
-    activities = serializers.ListField()
+    categories = serializers.IntegerField()
+    modifiers = serializers.IntegerField()
 
 class AdminStatsSerializer(serializers.Serializer):
     totalTenants = serializers.IntegerField()
@@ -145,12 +143,3 @@ class AdminApprovalUserSerializer(serializers.ModelSerializer):
     def get_notes(self, obj):
         payment = self._get_pending_payment(obj)
         return payment.notes if payment else None
-
-class InvoiceSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Invoice
-        fields = [
-            'id', 'order', 'invoice_number', 'payment_method', 'payment_status',
-            'amount_paid', 'change', 'created_at'
-        ]
-        read_only_fields = ['id', 'invoice_number', 'created_at']

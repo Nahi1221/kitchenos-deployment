@@ -17,8 +17,6 @@ from core.serializers import (
     AdminApprovalSerializer, AdminApprovalUserSerializer, PaymentSerializer
 )
 from core.utils.mailer import send_tenant_approval_email, send_tenant_rejection_email, send_registration_confirmation_email, send_tenant_suspended_email, send_tenant_activated_email
-from orders.models import Order, OrderItem, Invoice
-from orders.serializers import OrderSerializer, InvoiceSerializer
 from users.serializers import UserSerializer
 from users.models import User
 
@@ -50,33 +48,11 @@ class BranchStatsView(APIView):
         if branch_id:
             modifiers_qs = modifiers_qs.filter(item__category__branch_id=branch_id)
 
-        orders_qs = Order.objects.filter(user=user)
-        if branch_id:
-            orders_qs = orders_qs.filter(branch_id=branch_id)
-
-        paid_invoices = Invoice.objects.filter(order__user=user, payment_status='paid')
-        if branch_id:
-            paid_invoices = paid_invoices.filter(order__branch_id=branch_id)
-        revenue = sum(inv.amount_paid for inv in paid_invoices)
-
-        customers = orders_qs.values_list('customer_phone', flat=True).exclude(customer_phone__isnull=True).distinct().count()
-
-        recent_orders = orders_qs.order_by('-created_at')[:5]
-        activities = []
-        for o in recent_orders:
-            activities.append({
-                'id': o.id,
-                'action': f'Order #{o.order_number}',
-                'details': f'Status: {o.status.replace("_", " ").title()}',
-                'time': o.created_at.isoformat(),
-            })
-
         data = {
             'branches': branches_qs.count(),
             'menuItems': items_qs.count(),
-            'revenue': revenue,
-            'customers': customers,
-            'activities': activities,
+            'categories': categories_qs.count(),
+            'modifiers': modifiers_qs.count(),
         }
         serializer = DashboardStatsSerializer(instance=data)
         return Response(serializer.data)
@@ -159,6 +135,7 @@ class AdminApproveView(APIView):
                 location=user.business_location,
                 phone=user.phone or '',
             )
+            Subscription.refresh_latest_usage(user)
 
         try:
             send_tenant_approval_email(
@@ -273,6 +250,7 @@ class AdminPaymentApproveView(APIView):
                     location=user.business_location,
                     phone=user.phone or '',
                 )
+                Subscription.refresh_latest_usage(user)
 
             try:
                 send_tenant_approval_email(
@@ -372,8 +350,8 @@ class AdminSubscriptionListView(APIView):
                 'status': sub.status,
                 'start_date': sub.start_date.isoformat(),
                 'end_date': sub.end_date.isoformat(),
-                'branches_used': sub.branches_used,
-                'items_used': sub.items_used,
+                'branches_used': sub.get_usage_counts()['branches_used'],
+                'items_used': sub.get_usage_counts()['items_used'],
                 'created_at': sub.created_at.isoformat(),
             })
         return Response(data)
@@ -670,53 +648,6 @@ class AdminBulkSubscriptionCancelView(APIView):
         subscriptions = Subscription.objects.filter(pk__in=ids)
         count = subscriptions.update(status='CANCELLED')
         return Response({'message': f'{count} subscription(s) cancelled.'})
-
-
-class AdminAnalyticsRevenueView(APIView):
-    permission_classes = [IsAdminUser]
-
-    def get(self, request):
-        days = int(request.query_params.get('days', 30))
-        start_date = timezone.now() - timedelta(days=days)
-        invoices = Invoice.objects.filter(created_at__gte=start_date, payment_status='paid')
-        daily = {}
-        for inv in invoices:
-            day = inv.created_at.date().isoformat()
-            daily[day] = daily.get(day, 0) + float(inv.amount_paid)
-        data = [{'date': day, 'amount': amount} for day, amount in sorted(daily.items())]
-        return Response(data)
-
-
-class AdminAnalyticsTopItemsView(APIView):
-    permission_classes = [IsAdminUser]
-
-    def get(self, request):
-        limit = int(request.query_params.get('limit', 10))
-        items = OrderItem.objects.values('menu_item__name').annotate(
-            total_quantity=Sum('quantity'),
-            total_revenue=Sum('subtotal')
-        ).order_by('-total_quantity')[:limit]
-        return Response(list(items))
-
-
-class AdminAnalyticsTopBranchesView(APIView):
-    permission_classes = [IsAdminUser]
-
-    def get(self, request):
-        limit = int(request.query_params.get('limit', 10))
-        branches = Order.objects.values('branch__name').annotate(
-            order_count=Count('id'),
-            total_revenue=Sum('total')
-        ).order_by('-order_count')[:limit]
-        return Response(list(branches))
-
-
-class AdminAnalyticsOrderStatusView(APIView):
-    permission_classes = [IsAdminUser]
-
-    def get(self, request):
-        data = Order.objects.values('status').annotate(count=Count('id'))
-        return Response(list(data))
 
 
 class AdminAnalyticsSubscriptionView(APIView):

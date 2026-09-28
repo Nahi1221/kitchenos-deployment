@@ -33,6 +33,5 @@ urlpatterns = [
     path('admin/analytics/revenue/', views.AdminAnalyticsRevenueView.as_view(), name='admin-analytics-revenue'),
     path('admin/analytics/top-items/', views.AdminAnalyticsTopItemsView.as_view(), name='admin-analytics-top-items'),
     path('admin/analytics/top-branches/', views.AdminAnalyticsTopBranchesView.as_view(), name='admin-analytics-top-branches'),
-    path('admin/analytics/order-status/', views.AdminAnalyticsOrderStatusView.as_view(), name='admin-analytics-order-status'),
     path('admin/analytics/subscriptions/', views.AdminAnalyticsSubscriptionView.as_view(), name='admin-analytics-subscriptions'),
 ]

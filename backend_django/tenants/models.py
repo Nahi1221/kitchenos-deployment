@@ -52,6 +52,31 @@ class Subscription(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def get_usage_counts(self):
+        from branches.models import Branch
+        from menu.models import MenuItem
+
+        branches = Branch.objects.filter(user_id=self.user_id, is_deleted=False)
+        return {
+            'branches_used': branches.count(),
+            'items_used': MenuItem.objects.filter(
+                category__branch__in=branches,
+                category__branch__is_deleted=False,
+            ).count(),
+        }
+
+    def refresh_usage(self):
+        usage = self.get_usage_counts()
+        self.branches_used = usage['branches_used']
+        self.items_used = usage['items_used']
+        self.save(update_fields=['branches_used', 'items_used', 'updated_at'])
+        return self
+
+    @classmethod
+    def refresh_latest_usage(cls, user):
+        subscription = cls.objects.filter(user=user).order_by('-created_at').first()
+        return subscription.refresh_usage() if subscription else None
+
     class Meta:
         ordering = ['-created_at']
         unique_together = ['user', 'plan', 'start_date']

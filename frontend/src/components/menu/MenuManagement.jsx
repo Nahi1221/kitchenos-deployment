@@ -15,9 +15,8 @@ function MenuManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItemForModifiers, setSelectedItemForModifiers] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [limits, setLimits] = useState({ branches_limit: 0, branches_used: 0, items_limit: 0, items_used: 0 });
+  const [limits, setLimits] = useState({ branches_limit: 0, branches_used: 0, items_limit: 0, items_used: 0, is_unlimited_branches: false, is_unlimited_items: false });
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [showWarning, setShowWarning] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,6 +60,8 @@ function MenuManagement() {
           branches_used: sub.branches_used,
           items_limit: sub.items_limit,
           items_used: sub.items_used,
+          is_unlimited_branches: Boolean(sub.is_unlimited_branches),
+          is_unlimited_items: Boolean(sub.is_unlimited_items),
         });
       }
     } catch (e) {
@@ -71,13 +72,6 @@ function MenuManagement() {
   useEffect(() => {
     fetchLimits();
   }, []);
-
-  useEffect(() => {
-    if (selectedBranchId && selectedBranchId !== branchId) {
-      setBranchId(selectedBranchId);
-      fetchCategories(selectedBranchId);
-    }
-  }, [selectedBranchId]);
 
   const fetchCategories = async (bId) => {
     if (!bId) return;
@@ -90,13 +84,15 @@ function MenuManagement() {
     }
   };
 
-const checkItemLimit = () => {
-    if (limits.items_limit && limits.items_limit !== -1 && limits.items_used >= limits.items_limit) {
+  const checkItemLimit = () => {
+    if (!limits.is_unlimited_items && limits.items_limit > 0 && limits.items_used >= limits.items_limit) {
       setShowUpgradeModal(true);
       return false;
     }
     return true;
   };
+
+  const activeBranchId = branchId || selectedBranchId;
 
 	const handleCreateCategory = async (e) => {
 		e.preventDefault();
@@ -171,8 +167,9 @@ const checkItemLimit = () => {
 				await api.put(`/menu/items/${editingItem.id}/`, payload);
 				toast.success('Item updated');
 			} else {
-				await api.post('/menu/items/', payload);
-				toast.success('Item added');
+			await api.post('/menu/items/', payload);
+			toast.success('Item added');
+			await Promise.all([fetchCategories(activeBranchId), fetchLimits()]);
 			}
 			setShowItemForm(false);
 			setEditingItem(null);
@@ -190,7 +187,7 @@ const checkItemLimit = () => {
 		try {
 			await api.delete(`/menu/items/${itemId}/`);
 			toast.success('Item deleted');
-			fetchCategories(branchId);
+			await Promise.all([fetchCategories(activeBranchId), fetchLimits()]);
 		} catch (e) {
 			toast.error('Failed to delete item');
 		}

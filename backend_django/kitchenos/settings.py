@@ -71,7 +71,6 @@ INSTALLED_APPS = [
     'branches',
     'menu',
     'core',
-    'orders',
 ]
 
 # ============================================
@@ -162,6 +161,9 @@ BREVO_SMTP_PORT = env.int('BREVO_SMTP_PORT', default=587)
 BREVO_SMTP_USER = env('BREVO_SMTP_USER', default='')
 BREVO_SMTP_PASSWORD = env('BREVO_SMTP_PASSWORD', default='')
 BREVO_FROM_EMAIL = env('BREVO_FROM_EMAIL', default='noreply@kitchenos.app')
+
+# Email backend (console for local dev when Brevo API key is not set)
+EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 
 # Add production-friendly host and frontend origin settings.
 def _sanitize_allowed_origins(raw_values):

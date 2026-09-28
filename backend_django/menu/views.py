@@ -2,6 +2,7 @@ from rest_framework import viewsets, permissions, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
+from django.db import transaction
 from django.db.models import Count
 from django.conf import settings
 import os
@@ -10,7 +11,9 @@ import io
 import qrcode
 from branches.models import Branch
 from menu.models import MenuCategory, MenuItem, Modifier
+from tenants.models import Subscription
 from .serializers import CategorySerializer, ItemSerializer, ModifierSerializer
+from core.utils.uploads import upload_image
 
 class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
@@ -32,6 +35,10 @@ class CategoryViewSet(viewsets.ModelViewSet):
         if not branch:
             raise serializers.ValidationError({'branch_id': 'Invalid branch.'})
         serializer.save(branch=branch)
+
+    def perform_destroy(self, instance):
+        instance.delete()
+        Subscription.refresh_latest_usage(self.request.user)
 
 class ItemViewSet(viewsets.ModelViewSet):
     serializer_class = ItemSerializer
@@ -59,22 +66,26 @@ class ItemViewSet(viewsets.ModelViewSet):
         category = MenuCategory.objects.filter(id=category_id, branch__user=self.request.user).first()
         if not category:
             raise serializers.ValidationError({'category_id': 'Invalid category.'})
-        if branch_id and not Branch.objects.filter(id=branch_id, user=self.request.user).exists():
-            raise serializers.ValidationError({'branch_id': 'Invalid branch.'})
-        
-        # Determine the branch for limit checking
-        branch = category.branch
         if branch_id:
-            branch = Branch.objects.filter(id=branch_id, user=self.request.user).first()
+            if str(category.branch_id) != str(branch_id):
+                raise serializers.ValidationError({'branch_id': 'Branch does not match the selected category.'})
+            if not Branch.objects.filter(id=branch_id, user=self.request.user, is_deleted=False).exists():
+                raise serializers.ValidationError({'branch_id': 'Invalid branch.'})
         
         user = self.request.user
         subscription = user.subscriptions.filter(status__in=['ACTIVE', 'TRIAL', 'GRACE_PERIOD']).first()
         if subscription and not subscription.plan.is_unlimited_items:
-            # Count items per branch
-            current_items = MenuItem.objects.filter(category__branch=branch).count()
+            current_items = MenuItem.objects.filter(category__branch=category.branch).count()
             if current_items >= subscription.plan.max_items:
                 raise serializers.ValidationError(f"You have reached your plan limit of {subscription.plan.max_items} items for this branch. Please upgrade your plan.")
-        serializer.save(category=category)
+        item = serializer.save(category=category)
+        Subscription.refresh_latest_usage(user)
+        return item
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        instance.delete()
+        Subscription.refresh_latest_usage(user)
 
     @action(detail=False, methods=['post'], parser_classes=[MultiPartParser, FormParser])
     def bulk_import(self, request):
@@ -86,66 +97,62 @@ class ItemViewSet(viewsets.ModelViewSet):
         user = request.user
         subscription = user.subscriptions.filter(status__in=['ACTIVE', 'TRIAL', 'GRACE_PERIOD']).first()
         max_items = subscription.plan.max_items if subscription and not subscription.plan.is_unlimited_items else float('inf')
-        
-        # Track items per branch
-        branch_item_counts = {}
-        for branch in Branch.objects.filter(user=user, is_deleted=False):
-            branch_item_counts[branch.id] = MenuItem.objects.filter(category__branch=branch).count()
-        
+        branch_item_counts = {
+            branch.id: MenuItem.objects.filter(category__branch=branch).count()
+            for branch in Branch.objects.filter(user=user, is_deleted=False)
+        }
         created = []
         errors = []
         try:
-            decoded = file.read().decode('utf-8')
+            decoded = file.read().decode('utf-8-sig')
             reader = csv.DictReader(io.StringIO(decoded))
-            for row in reader:
-                category_name = row.get('category_name') or row.get('Category')
-                item_name = row.get('name') or row.get('Item Name')
-                price = row.get('price') or row.get('Price')
-                currency = row.get('currency') or row.get('Currency', 'ETB')
-                description = row.get('description') or row.get('Description', '')
-                if not category_name or not item_name or not price:
-                    errors.append({'row': row, 'error': 'Missing required fields: category_name, name, price'})
-                    continue
-                branch_id = row.get('branch_id') or row.get('Branch ID')
-                if not branch_id:
-                    errors.append({'row': row, 'error': 'Missing branch_id'})
-                    continue
-                branch = Branch.objects.filter(id=branch_id, user=user).first()
-                if not branch:
-                    errors.append({'row': row, 'error': 'Invalid branch_id'})
-                    continue
-                
-                # Check branch-specific limit
-                current_branch_items = branch_item_counts.get(branch.id, 0)
-                if current_branch_items >= max_items:
-                    errors.append({'row': row, 'error': f'Plan limit reached for this branch ({max_items} items)'})
-                    continue
-                
-                category, _ = MenuCategory.objects.get_or_create(
-                    branch=branch,
-                    name=category_name,
-                    defaults={'is_active': True, 'order': 0}
-                )
-                item, created_flag = MenuItem.objects.get_or_create(
-                    category=category,
-                    name=item_name,
-                    defaults={
-                        'price': price,
-                        'currency': currency,
-                        'description': description,
-                        'is_available': True,
-                    }
-                )
-                if created_flag:
-                    branch_item_counts[branch.id] = branch_item_counts.get(branch.id, 0) + 1
-                    created.append(item.name)
-                else:
-                    errors.append({'row': row, 'error': f'Item "{item_name}" already exists in this category'})
-                if created_flag:
-                    created.append(item.name)
-                    current_items += 1
+            with transaction.atomic():
+                for row in reader:
+                    category_name = (row.get('category_name') or row.get('Category') or '').strip()
+                    item_name = (row.get('name') or row.get('Item Name') or '').strip()
+                    price = (row.get('price') or row.get('Price') or '').strip()
+                    currency = (row.get('currency') or row.get('Currency') or 'ETB').strip()
+                    description = (row.get('description') or row.get('Description') or '').strip()
+                    if not category_name or not item_name or not price:
+                        errors.append({'row': row, 'error': 'Missing required fields: category_name, name, price'})
+                        continue
+                    branch_id = (row.get('branch_id') or row.get('Branch ID') or '').strip()
+                    if not branch_id:
+                        errors.append({'row': row, 'error': 'Missing branch_id'})
+                        continue
+                    branch = Branch.objects.filter(id=branch_id, user=user, is_deleted=False).first()
+                    if not branch:
+                        errors.append({'row': row, 'error': 'Invalid branch_id'})
+                        continue
+                    current_branch_items = branch_item_counts.get(branch.id, 0)
+                    if current_branch_items >= max_items:
+                        errors.append({'row': row, 'error': f'Plan limit reached for this branch ({max_items} items)'})
+                        continue
+                    category, _ = MenuCategory.objects.get_or_create(
+                        branch=branch,
+                        name=category_name,
+                        defaults={'is_active': True, 'order': 0}
+                    )
+                    item, created_flag = MenuItem.objects.get_or_create(
+                        category=category,
+                        name=item_name,
+                        defaults={
+                            'price': price,
+                            'currency': currency,
+                            'description': description,
+                            'is_available': True,
+                        }
+                    )
+                    if created_flag:
+                        branch_item_counts[branch.id] = current_branch_items + 1
+                        created.append(item.name)
+                    else:
+                        errors.append({'row': row, 'error': f'Item "{item_name}" already exists in this category'})
+        except UnicodeDecodeError:
+            return Response({'error': 'CSV file must be UTF-8 encoded.'}, status=400)
         except Exception as e:
             return Response({'error': f'Failed to parse CSV: {str(e)}'}, status=400)
+        Subscription.refresh_latest_usage(user)
         return Response({'created': created, 'errors': errors, 'total_created': len(created)})
 
 class ModifierViewSet(viewsets.ModelViewSet):
@@ -177,16 +184,11 @@ class UploadImageView(viewsets.ViewSet):
         if not file_obj:
             return Response({'error': 'No file uploaded.'}, status=400)
         try:
-            import cloudinary.uploader
-            result = cloudinary.uploader.upload(
-                file_obj,
-                folder='kitchenos/menu-images',
-                resource_type='image'
-            )
-            return Response({'url': result.get('secure_url')})
+            url = upload_image(file_obj, folder='kitchenos/menu-images')
+            return Response({'url': request.build_absolute_uri(url)})
         except Exception as e:
-            print(f"Cloudinary upload error: {e}")
-            raise Exception("Failed to upload menu image. Please ensure Cloudinary is configured correctly.")
+            print(f"Menu image upload error: {e}")
+            raise Exception("Failed to upload menu image.")
 
 class PublicMenuView(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
@@ -228,7 +230,7 @@ class PublicMenuView(viewsets.ViewSet):
                     'description': item.description,
                     'price': item.price,
                     'currency': item.currency,
-                    'image_url': item.image_url,
+                    'image_url': request.build_absolute_uri(item.image_url) if item.image_url else None,
                     'featured': item.featured,
                     'is_out_of_stock': item.is_out_of_stock,
                 })

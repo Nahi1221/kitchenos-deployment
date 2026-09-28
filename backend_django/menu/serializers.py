@@ -4,6 +4,7 @@ from .models import MenuCategory, MenuItem, Modifier
 class ItemSerializer(serializers.ModelSerializer):
     category = serializers.SerializerMethodField()
     category_id = serializers.IntegerField(source='category.id', read_only=True)
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = MenuItem
@@ -16,6 +17,14 @@ class ItemSerializer(serializers.ModelSerializer):
 
     def get_category(self, obj):
         return {'id': obj.category_id, 'name': obj.category.name}
+
+    def get_image_url(self, obj):
+        if not obj.image_url:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.image_url)
+        return obj.image_url
 
 class CategorySerializer(serializers.ModelSerializer):
     items = ItemSerializer(many=True, read_only=True)
